@@ -5,13 +5,14 @@ import { ref } from 'vue';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import currency from "currency.js"
 import { cloneDeep } from 'lodash';
+import { v4 as uuidv4 } from 'uuid';
 
 dayjs.extend(weekOfYear);
 
 const data = ref(mockData());
 const cloneData = ref(cloneDeep(data.value));
 const defaultColumns = () => [
-  { field: 'id', title: 'ID', width: 80 },
+  { field: '_id', title: 'ID', width: 80, treeNode: true },
   { field: 'productName', title: '产品名称', width: 120 },
   { field: 'productCode', title: '产品编码', width: 120 },
   { field: 'amount', title: '总金额', width: 100 },
@@ -156,38 +157,58 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
 const activeDateType = ref('year');
 const handlerDate = (type) => {
   data.value = cloneDeep(cloneData.value);
+  let oldData = cloneDeep(cloneData.value);
 
-  activeDateType.value = type;
-  let dataTree = [];
-  let splitSybol = "_"
-  fieldModel.value.forEach((field, fIndex) => {
-    let dataTreeMap = new Map();
-    let d = dataTree[fIndex - 1]; // 处理前身数据
-    if (!d) {
-      data.value.forEach(item => {
-        let arr = dataTreeMap.get(item[field]) || []
-        arr.push(item);
-        item.children = [];
-        dataTreeMap.set(item[field], arr);
-      })
-    } else {
-      Array.from(d.entries()).forEach(([key, value]) => {
-        let arr = [];
-        field2.value.forEach(field2 => {})
-        let obj = value[0];
-        value.forEach(item => {
-          let key2 = key + splitSybol + item[field];
-          obj
-          arr = dataTreeMap.get(key2) || []
-          arr.push(item);
-          dataTreeMap.set(key2, arr);
-          item.children = arr;
-        })
-        // d.children = arr;
-      })
+  const buildTree = (data, fields, level = 0, path = '', parentId = null) => {
+    if (!fields?.length || !data?.length) {
+      return [];
     }
-    dataTree.push(dataTreeMap);
-  })
+
+    const field = fields[0];
+    const treeMap = new Map();
+
+    data.forEach(item => {
+      const key = item[field];
+      const arr = treeMap.get(key) || [];
+      arr.push(item);
+      treeMap.set(key, arr);
+    });
+
+    const result = [];
+
+    treeMap.forEach((items, key) => {
+      const currentPath = path ? `${path}/${key}` : key;
+      const currentId = uuidv4();
+
+      if (level === fieldModel.value.length - 1) {
+        // If this is the last level based on fieldModel length, 
+        // directly push items without creating children
+        result.push({
+          _id: currentId,
+          _parentId: parentId,
+          _level: level,
+          _path: currentPath,
+          ...items[0]
+        });
+      } else {
+        // Otherwise continue building the tree structure
+        const children = buildTree(items, fields.slice(1), level + 1, currentPath, currentId);
+        result.push({
+          _id: currentId,
+          _parentId: parentId,
+          _level: level,
+          _path: currentPath,
+          ...items[0],
+          children
+        });
+      }
+    });
+
+    return result;
+  };
+
+  const newData = buildTree(oldData, fieldModel.value);
+  data.value = newData;
 
   // 一层数据处理
   let dateHook = new DateHook(data.value);
@@ -204,13 +225,12 @@ const handlerDate = (type) => {
     })
   })
 
-
   if (fieldModel.value.length) {
     data.value = Array.from(dataMap.values())
   }
   columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultColumns(), targetCols: field2.value })
-
 }
+
 const fieldModel = ref([])
 const field2 = ref([])
 const handlerSearch = () => {
@@ -238,7 +258,7 @@ const handlerSearch = () => {
     <div style="height: 90vh;">
       <vxe-grid :data="data" :columns="columns" border header-align="center" :scroll-x="{ enabled: true, gt: 60 }"
         :row-config="{ height: 24 }" show-overflow height="100%"
-        :tree-config="{ transform: true,  childrenField: 'children' }" />
+        :tree-config="{ childrenField: 'children', rowField: '_id', parentField: '_parentId' }" :column-config="{ resizable: true }"/>
     </div>
   </div>
 </template>
