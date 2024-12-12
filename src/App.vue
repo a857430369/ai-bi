@@ -235,7 +235,7 @@ const tableConfig = ref({
     gt: 0
   },
   headerAlign: 'center',
-  height: 1200,
+  height: '100%',
   rowConfig: { height: 24 },
   columnConfig: { resizable: true },
   treeConfig: {
