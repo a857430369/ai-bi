@@ -7,6 +7,18 @@ import currency from "currency.js"
 import { cloneDeep, uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { VxeUI } from 'vxe-table'
+// import dataJson from "./data.json"
+import utc from 'dayjs/plugin/utc';
+
+dayjs.extend(utc);
+// TODO 未来需要分析字段是否要做合并项目
+// TODO 未来需要分析字段是否要做平均计算
+// TODO 需要做footer统计
+// TODO 可能创建一个新的组件做合并项数据分析
+
+// TODO 根据创建时间进行时间分析
+const FIELD_BY_TIME = "createTime"; // 该字段可动态配置
+// const mockData = () => Promise.resolve(dataJson);
 
 dayjs.extend(weekOfYear);
 // 递归展开嵌套数据
@@ -100,9 +112,9 @@ class DateHook {
   year() {
     let map = new Map();
     this.data
-      .sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
+      .sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
-        let year = dayjs(item.createTime).year();
+        let year = dayjs.utc(item[FIELD_BY_TIME]).year();
         if (!map.has(year)) {
           map.set(year, []);
         }
@@ -112,9 +124,9 @@ class DateHook {
   }
   quarter() {
     let map = new Map();
-    this.data.sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
+    this.data.sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
-        let year = `${dayjs(item.createTime).year()}Q${Math.ceil(dayjs(item.createTime).month() / 3)}`;
+        let year = `${dayjs.utc(item[FIELD_BY_TIME]).year()}Q${Math.ceil(dayjs.utc(item[FIELD_BY_TIME]).month() / 3)}`;
         if (!map.has(year)) {
           map.set(year, []);
         }
@@ -125,9 +137,9 @@ class DateHook {
   month() {
     let map = new Map();
     this.data
-      .sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
+      .sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
-        let year = `${dayjs(item.createTime).year()}-${dayjs(item.createTime).month() + 1}`;
+        let year = `${dayjs.utc(item[FIELD_BY_TIME]).year()}-${dayjs.utc(item[FIELD_BY_TIME]).month() + 1}`;
         if (!map.has(year)) {
           map.set(year, []);
         }
@@ -138,9 +150,9 @@ class DateHook {
   week() {
     let map = new Map();
     this.data
-      .sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
+      .sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
-        let week = `${dayjs(item.createTime).year()}W${dayjs(item.createTime).week()}`;
+        let week = `${dayjs.utc(item[FIELD_BY_TIME]).year()}W${dayjs.utc(item[FIELD_BY_TIME]).week()}`;
         if (!map.has(week)) {
           map.set(week, []);
         }
@@ -199,6 +211,9 @@ const tableConfig = ref({
     rowField: '_id',
     parentField: '_parentId'
   },
+  rowClassName:({ row }) => {
+    return row.children?.length ? 'has-children' : ''
+  }
 })
 
 let timer;
@@ -256,19 +271,17 @@ const handlerDate = (type) => {
             item[fieldKey] = item[field];
 
             let parentId = item._parentId || item[fieldModel.value[0]];
-            console.log("parentId", parentId)
             let obj = dataMap.get(parentId) || {};
             dataMap.set(parentId, Object.assign(obj, item));
           })
         })
         let arr = Array.from(dataMap.values());
-        // console.log("arr", arr)
         let obj = arr[0];
         field2.value.forEach(field => {
           let fieldKey = key + field;
           obj[fieldKey] = value.reduce((sum, item) => currency(sum).add(item[fieldKey]).value, 0);
+          obj.num = currency(obj.num).add(value.length).value;
         })
-        obj.num = value.length;
       })
 
       // 做完分组后，进行逻辑重算
@@ -291,7 +304,8 @@ const handlerDate = (type) => {
           _level: level,
           _path: currentPath,
           ...obj,
-          children
+          children,
+          num: children.length
         });
       }
     });
@@ -325,11 +339,11 @@ const handlerDate = (type) => {
   nextTick(() => {
     onClickExpand(true);
     const end = performance.now();
-      times.value = end - start;
-      VxeUI.modal.message({
-        content: `Tree building time: ${end - start}ms`,
-        status: 'success'
-      })
+    times.value = end - start;
+    VxeUI.modal.message({
+      content: `Tree building time: ${end - start}ms`,
+      status: 'success'
+    })
     tableConfig.value.loading = false;
   })
 }
@@ -385,4 +399,9 @@ const onClickExpand = (expand) => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+:deep(.has-children){
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+</style>
