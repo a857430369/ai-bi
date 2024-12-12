@@ -1,19 +1,38 @@
 <script setup>
 import { mockData } from './mock';
 import dayjs from 'dayjs';
-import { ref } from 'vue';
+import { ref, nextTick, onMounted } from 'vue';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import currency from "currency.js"
-import { cloneDeep } from 'lodash';
+import { cloneDeep, uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 
 dayjs.extend(weekOfYear);
+// 递归展开嵌套数据
+function flattenData(nodes) {
+  let flatList = [];
 
-const data = ref(mockData());
+  function recurse(node) {
+    flatList.push(node);
+
+    // 如果存在子节点，递归展开
+    if (node.children && Array.isArray(node.children)) {
+      node.children.forEach(child => recurse(child));
+    }
+  }
+
+  nodes.forEach(node => recurse(node));
+  return flatList;
+}
+
+
+const data = ref([]);
 const cloneData = ref(cloneDeep(data.value));
 const defaultColumns = () => [
-  { field: '_id', title: 'ID', width: 80, treeNode: true },
+  { title: '#', type: 'seq', width: 80 },
+  { field: '_id', title: 'ID', width: 180 },
   { field: 'productName', title: '产品名称', width: 120 },
+  { field: 'createTime', title: '创建时间', width: 150 },
   { field: 'productCode', title: '产品编码', width: 120 },
   { field: 'amount', title: '总金额', width: 100 },
   { field: 'unitPrice', title: '单价', width: 100 },
@@ -72,14 +91,13 @@ const buttons = [
   { key: 'week', text: '按周' }
 ];
 
-
 class DateHook {
-  constructor() {
-    this.data = data.value;
+  constructor(data) {
+    this.data = data;
   }
   year() {
     let map = new Map();
-    data.value
+    this.data
       .sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
       .forEach(item => {
         let year = dayjs(item.createTime).year();
@@ -92,7 +110,7 @@ class DateHook {
   }
   quarter() {
     let map = new Map();
-    data.value.sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
+    this.data.sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
       .forEach(item => {
         let year = `${dayjs(item.createTime).year()}Q${Math.ceil(dayjs(item.createTime).month() / 3)}`;
         if (!map.has(year)) {
@@ -104,7 +122,7 @@ class DateHook {
   }
   month() {
     let map = new Map();
-    data.value
+    this.data
       .sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
       .forEach(item => {
         let year = `${dayjs(item.createTime).year()}-${dayjs(item.createTime).month() + 1}`;
@@ -117,7 +135,7 @@ class DateHook {
   }
   week() {
     let map = new Map();
-    data.value
+    this.data
       .sort((a, b) => dayjs(a.createTime).unix() - dayjs(b.createTime).unix())
       .forEach(item => {
         let week = `${dayjs(item.createTime).year()}W${dayjs(item.createTime).week()}`;
@@ -155,11 +173,20 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
   return dCols
 }
 const activeDateType = ref('year');
+
+const tableConfig = ref({
+  loading: false
+})
 const handlerDate = (type) => {
+  console.log(cloneDeep(cloneData.value))
   data.value = cloneDeep(cloneData.value);
   let oldData = cloneDeep(cloneData.value);
 
+  let lastLevel = 0;
+
+  let cols = [];
   const buildTree = (data, fields, level = 0, path = '', parentId = null) => {
+    lastLevel = level;
     if (!fields?.length || !data?.length) {
       return [];
     }
@@ -175,68 +202,112 @@ const handlerDate = (type) => {
     });
 
     const result = [];
-
+    // 组成树
     treeMap.forEach((items, key) => {
       const currentPath = path ? `${path}/${key}` : key;
       const currentId = uuidv4();
 
+      // 根据日期类型，进行树分组
+      let dateHook = new DateHook(items);
+      let map = dateHook[type]();
+      let dataMap = new Map();
+      let keys = Array.from(map.keys());
+      cols.push(...keys);
+      Array.from(map.entries()).forEach(([key, value]) => {
+        value.forEach(item => {
+          field2.value.forEach(field => {
+            let fieldKey = key + field;
+            // item[fieldKey] = item[fieldKey] ? currency(item[fieldKey]).add(item[field]).value : item[field];
+            item[fieldKey] = item[field];
+            let obj = dataMap.get(item._parentId) || {};
+            dataMap.set(item._parentId, Object.assign(obj, item));
+          })
+        })
+        let arr = Array.from(dataMap.values());
+        let obj = arr[0];
+        field2.value.forEach(field => {
+          let fieldKey = key + field;
+          obj[fieldKey] = value.reduce((sum, item) => currency(sum).add(item[fieldKey]).value, 0);
+        })
+      })
+
+      // 做完分组后，进行逻辑重算
+      let arr = Array.from(dataMap.values());
+      let obj = arr[0];
+
       if (level === fieldModel.value.length - 1) {
-        // If this is the last level based on fieldModel length, 
-        // directly push items without creating children
         result.push({
           _id: currentId,
           _parentId: parentId,
           _level: level,
           _path: currentPath,
-          ...items[0]
+          ...obj
         });
       } else {
-        // Otherwise continue building the tree structure
         const children = buildTree(items, fields.slice(1), level + 1, currentPath, currentId);
         result.push({
           _id: currentId,
           _parentId: parentId,
           _level: level,
           _path: currentPath,
-          ...items[0],
+          ...obj,
           children
         });
       }
     });
-
     return result;
   };
 
+  const start = performance.now();
+  tableConfig.value.loading = true;
   const newData = buildTree(oldData, fieldModel.value);
+  const end = performance.now();
+  console.log(`Tree building time: ${end - start}ms`);
+  tableConfig.value.loading = false;
+
   data.value = newData;
+  cols = uniq(cols);
 
-  // 一层数据处理
-  let dateHook = new DateHook(data.value);
-  const map = dateHook[type]();
-  const cols = Array.from(map.keys())
-  let dataMap = new Map();
-  Array.from(map.entries()).forEach(([key, value]) => {
-    value.forEach(item => {
-      field2.value.forEach(field => {
-        item[key + field] = item[field];
-        let obj = dataMap.get(item[fieldModel.value?.[0]]) || {};
-        dataMap.set(item[fieldModel.value?.[0]], Object.assign(obj, item));
-      })
-    })
-  })
-
-  if (fieldModel.value.length) {
-    data.value = Array.from(dataMap.values())
-  }
   columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultColumns(), targetCols: field2.value })
+  if (fieldModel.value.length > 1) {
+    columns.value.splice(2, 0, {
+      title: columns.value
+        .filter(item => fieldModel.value.includes(item.field))
+        .map(item => item.title)
+        .join('/'),
+      field: '_path',
+      width: 220,
+      treeNode: true,
+      formatter: ({ cellValue }) => {
+        return cellValue?.split('/').pop()
+      }
+    })
+  }
+
+  nextTick(() => {
+    onClickExpand(true);
+  })
 }
 
 const fieldModel = ref([])
 const field2 = ref([])
-const handlerSearch = () => {
-  data.value = mockData();
-  cloneData.value = cloneDeep(data.value);
+const xTable = ref();
+
+const handlerSearch = async () => {
+  // data.value = await mockData();
+  // cloneData.value = cloneDeep(data.value);
   handlerDate(activeDateType.value);
+}
+onMounted(async () => {
+  console.log(await mockData())
+  // data.value = await mockData();
+  cloneData.value = cloneDeep(data.value);
+})
+
+const expandAll = ref(true);
+const onClickExpand = (expand) => {
+  expandAll.value = expand || !expandAll.value;
+  xTable.value?.setAllTreeExpand(expandAll.value);
 }
 </script>
 
@@ -246,6 +317,7 @@ const handlerSearch = () => {
       <vxe-button v-for="btn in buttons" :key="btn.key" @click="handlerDate(btn.key)">
         {{ btn.text }}
       </vxe-button>
+      <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
       <vxe-button @click="handlerSearch">查询</vxe-button>
 
       <vxe-select :options="defaultCols" v-model="fieldModel" multiple style="width: 200px"
@@ -255,10 +327,11 @@ const handlerSearch = () => {
         :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
         clearable />
     </div>
-    <div style="height: 90vh;">
-      <vxe-grid :data="data" :columns="columns" border header-align="center" :scroll-x="{ enabled: true, gt: 60 }"
-        :row-config="{ height: 24 }" show-overflow height="100%"
-        :tree-config="{ childrenField: 'children', rowField: '_id', parentField: '_parentId' }" :column-config="{ resizable: true }"/>
+    <div style="height: 90vh;width: 90vw">
+      <vxe-grid ref="xTable" v-bind="tableConfig" :data="data" :columns="columns" border header-align="center" height="600" :row-config="{ height: 24 }"
+        show-overflow :column-config="{ resizable: true }" :scroll-y="{ enabled: true, gt: 0, mode: 'wheel' }"
+        :scroll-x="{ enabled: true, gt: 0 }"
+        :tree-config="{ childrenField: 'children', rowField: '_id', parentField: '_parentId', expandAll: true }"/>
     </div>
   </div>
 </template>

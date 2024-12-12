@@ -1,6 +1,8 @@
-const COUNT = 100;
+const COUNT = 1000;
 
-const generateRandomData = () => {
+const generateRandomData = async () => {
+  const startTime = new Date().getTime(); // Start time
+
   const products = ['笔记本电脑', '智能手机', '平板电脑', '智能手表', '耳机', '显示器', '键盘', '鼠标', '打印机', '路由器',
     '摄像头', '移动硬盘', '固态硬盘', '机械硬盘', '显卡', '内存条', '电源', '机箱', '散热器', '主板'];
 
@@ -10,7 +12,14 @@ const generateRandomData = () => {
   const combinations = ['标准版', '豪华版', '至尊版', '入门版', '商务版', '游戏版', '专业版', '定制版', '限量版', '纪念版',
     '典藏版', '简约版', '高配版', '低配版', '特供版', '出口版', '内销版', '工程版', '教育版', '企业版'];
 
+  // const products = ['笔记本电脑', '智能手机'];
+  
+  // const types = ['直接销售', '代理销售'];
+  
+  // const combinations = ['标准版', '豪华版'];
+
   const regions = ['华东', '华南', '华北', '华中', '西南', '西北', '东北', '港澳台'];
+  // const regions = ['华东', '华南'];
   const channels = ['线下门店', '官方商城', '天猫', '京东', '拼多多', '抖音', '快手', '微信小程序', '实体代理商', '电话销售'];
   const paymentMethods = ['支付宝', '微信支付', '银行卡', '现金', '分期付款', '企业支付', '公务卡', '预付款'];
   
@@ -44,8 +53,8 @@ const generateRandomData = () => {
     // 随机选择一个客户
     const customer = customers[Math.floor(Math.random() * customers.length)];
     
-    // 扩展时间维度，跨越3年的数据
-    const createDate = new Date(2021 + Math.floor(Math.random() * 3), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28));
+    // 扩展时间维度，5年内的数据
+    const createDate = new Date(2021 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28));
     const inquiryTime = new Date(createDate.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000); // 询价时间
     const quotationTime = new Date(inquiryTime.getTime() + Math.random() * 3 * 24 * 60 * 60 * 1000); // 报价时间
     const orderDate = new Date(createDate.getTime() + Math.random() * 30 * 24 * 60 * 60 * 1000); // 下单时间
@@ -139,6 +148,9 @@ const generateRandomData = () => {
       recommendationScore: Math.floor(Math.random() * 10) + 1
     });
   }
+
+  const endTime = new Date().getTime(); // End time
+  console.log(`Execution time: ${endTime - startTime}ms`); // Execution time
 
   return mockData;
 };
