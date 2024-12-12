@@ -1,4 +1,4 @@
-const COUNT = 5000;
+const COUNT = 10000;
 
 const generateRandomData = async () => {
   const startTime = new Date().getTime(); // Start time

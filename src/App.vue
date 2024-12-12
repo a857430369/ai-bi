@@ -11,13 +11,16 @@ import { VxeUI } from 'vxe-table'
 import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
+// TODO 需要做footer统计
 // TODO 未来需要分析字段是否要做合并项目
 // TODO 未来需要分析字段是否要做平均计算
-// TODO 需要做footer统计
+// TODO 多维度合并表头
 // TODO 可能创建一个新的组件做合并项数据分析
 
 // TODO 根据创建时间进行时间分析
 const FIELD_BY_TIME = "createTime"; // 该字段可动态配置
+// TODO 固定第一项位置
+const FIELD_FIRST = 3;
 // const mockData = () => Promise.resolve(dataJson);
 
 dayjs.extend(weekOfYear);
@@ -105,57 +108,79 @@ const buttons = [
   { key: 'week', text: '按周' }
 ];
 
+// DateHook类用于根据时间字段对数据进行分组
 class DateHook {
   constructor(data) {
+    // 构造函数，接收数据作为参数
     this.data = data;
   }
+  // 按年分组数据
   year() {
     let map = new Map();
+    // 对数据按照时间字段排序
     this.data
       .sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
+        // 提取年份
         let year = dayjs.utc(item[FIELD_BY_TIME]).year();
+        // 如果map中没有该年份，则添加
         if (!map.has(year)) {
           map.set(year, []);
         }
+        // 将数据添加到对应年份的数组中
         map.get(year).push(item);
       });
     return map;
   }
+  // 按季度分组数据
   quarter() {
     let map = new Map();
+    // 对数据按照时间字段排序
     this.data.sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
+        // 计算季度
         let year = `${dayjs.utc(item[FIELD_BY_TIME]).year()}Q${Math.ceil(dayjs.utc(item[FIELD_BY_TIME]).month() / 3)}`;
+        // 如果map中没有该季度，则添加
         if (!map.has(year)) {
           map.set(year, []);
         }
+        // 将数据添加到对应季度的数组中
         map.get(year).push(item);
       });
     return map;
   }
+  // 按月分组数据
   month() {
     let map = new Map();
+    // 对数据按照时间字段排序
     this.data
       .sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
+        // 计算月份
         let year = `${dayjs.utc(item[FIELD_BY_TIME]).year()}-${dayjs.utc(item[FIELD_BY_TIME]).month() + 1}`;
+        // 如果map中没有该月份，则添加
         if (!map.has(year)) {
           map.set(year, []);
         }
+        // 将数据添加到对应月份的数组中
         map.get(year).push(item);
       });
     return map;
   }
+  // 按周分组数据
   week() {
     let map = new Map();
+    // 对数据按照时间字段排序
     this.data
       .sort((a, b) => dayjs(a[FIELD_BY_TIME]).unix() - dayjs(b[FIELD_BY_TIME]).unix())
       .forEach(item => {
+        // 计算周数
         let week = `${dayjs.utc(item[FIELD_BY_TIME]).year()}W${dayjs.utc(item[FIELD_BY_TIME]).week()}`;
+        // 如果map中没有该周数，则添加
         if (!map.has(week)) {
           map.set(week, []);
         }
+        // 将数据添加到对应周数的数组中
         map.get(week).push(item);
       });
     return map;
@@ -166,6 +191,7 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
   let backCols = cloneDeep(defaultColumns);
   let innerCols = []
   let startIndex = -1;
+  let removeCols = []
   backCols.filter((item, index) => {
     if (!targetCols.length) {
       return false;
@@ -175,15 +201,20 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
     // 如果选中，则从columns中移除
     if (bol) {
       startIndex == -1 && (startIndex = index);
+      removeCols.push(item.field)
       innerCols.push(item);
-      dCols.splice(index, 1);
     }
     return bol;
   });
 
   let arr = cols.map(key => ({ field: key, title: key, width: 120, children: innerCols.map(i => Object.assign({}, i, { field: key + i.field })) }));
+  removeCols = fieldModel.value.length > 1? removeCols.concat(...fieldModel.value) : removeCols
+
+  dCols = dCols.filter(item =>  !removeCols.includes(item.field))
+
+  let index = fieldModel.value.length > 1? (FIELD_FIRST - 1) : FIELD_FIRST
   // TODO 该定位需要优化
-  dCols.splice(2, 0, ...arr)
+  dCols.splice(index, 0, ...arr)
   return dCols
 }
 const activeDateType = ref('year');
@@ -211,7 +242,7 @@ const tableConfig = ref({
     rowField: '_id',
     parentField: '_parentId'
   },
-  rowClassName:({ row }) => {
+  rowClassName: ({ row }) => {
     return row.children?.length ? 'has-children' : ''
   }
 })
@@ -322,7 +353,8 @@ const handlerDate = (type) => {
 
   columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultColumns(), targetCols: field2.value })
   if (fieldModel.value.length > 1) {
-    columns.value.splice(2, 0, {
+    // TODO 固定位置
+    columns.value.splice(FIELD_FIRST-1, 0, {
       title: columns.value
         .filter(item => fieldModel.value.includes(item.field))
         .map(item => item.title)
@@ -400,7 +432,7 @@ const onClickExpand = (expand) => {
 </template>
 
 <style scoped>
-:deep(.has-children){
+:deep(.has-children) {
   background-color: #f0f0f0;
   font-weight: bold;
 }
