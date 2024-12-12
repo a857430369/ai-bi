@@ -6,6 +6,7 @@ import weekOfYear from 'dayjs/plugin/weekOfYear';
 import currency from "currency.js"
 import { cloneDeep, uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
+import { VxeUI } from 'vxe-table'
 
 dayjs.extend(weekOfYear);
 // 递归展开嵌套数据
@@ -34,6 +35,7 @@ const defaultColumns = () => [
   { field: 'productName', title: '产品名称', width: 120 },
   { field: 'createTime', title: '创建时间', width: 150 },
   { field: 'productCode', title: '产品编码', width: 120 },
+  { field: 'num', title: '总数', width: 120 },
   { field: 'amount', title: '总金额', width: 100 },
   { field: 'unitPrice', title: '单价', width: 100 },
   { field: 'actualPrice', title: '实际价格', width: 100 },
@@ -175,8 +177,42 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
 const activeDateType = ref('year');
 
 const tableConfig = ref({
-  loading: false
+  border: true,
+  loading: false,
+  showOverflow: true,
+  showHeaderOverflow: true,
+  showFooterOverflow: true,
+  scrollY: {
+    enabled: true,
+    gt: 0
+  },
+  scrollX: {
+    enabled: true,
+    gt: 0
+  },
+  headerAlign: 'center',
+  height: 1200,
+  rowConfig: { height: 24 },
+  columnConfig: { resizable: true },
+  treeConfig: {
+    transform: true,
+    rowField: '_id',
+    parentField: '_parentId'
+  },
 })
+
+let timer;
+const INTERVAL = 300;
+const onHnadlerDate = (type) => {
+  tableConfig.value.loading = true;
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    activeDateType.value = type;
+    handlerDate(activeDateType.value);
+  }, INTERVAL)
+}
+
+const times = ref(0);
 const handlerDate = (type) => {
   console.log(cloneDeep(cloneData.value))
   data.value = cloneDeep(cloneData.value);
@@ -217,18 +253,22 @@ const handlerDate = (type) => {
         value.forEach(item => {
           field2.value.forEach(field => {
             let fieldKey = key + field;
-            // item[fieldKey] = item[fieldKey] ? currency(item[fieldKey]).add(item[field]).value : item[field];
             item[fieldKey] = item[field];
-            let obj = dataMap.get(item._parentId) || {};
-            dataMap.set(item._parentId, Object.assign(obj, item));
+
+            let parentId = item._parentId || item[fieldModel.value[0]];
+            console.log("parentId", parentId)
+            let obj = dataMap.get(parentId) || {};
+            dataMap.set(parentId, Object.assign(obj, item));
           })
         })
         let arr = Array.from(dataMap.values());
+        // console.log("arr", arr)
         let obj = arr[0];
         field2.value.forEach(field => {
           let fieldKey = key + field;
           obj[fieldKey] = value.reduce((sum, item) => currency(sum).add(item[fieldKey]).value, 0);
         })
+        obj.num = value.length;
       })
 
       // 做完分组后，进行逻辑重算
@@ -259,14 +299,12 @@ const handlerDate = (type) => {
   };
 
   const start = performance.now();
-  tableConfig.value.loading = true;
-  const newData = buildTree(oldData, fieldModel.value);
-  const end = performance.now();
-  console.log(`Tree building time: ${end - start}ms`);
-  tableConfig.value.loading = false;
 
-  data.value = newData;
-  cols = uniq(cols);
+  const newData = buildTree(oldData, fieldModel.value);
+
+  const flatData = flattenData(newData);
+  data.value = flatData;
+  cols = uniq(cols).sort();
 
   columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultColumns(), targetCols: field2.value })
   if (fieldModel.value.length > 1) {
@@ -286,6 +324,13 @@ const handlerDate = (type) => {
 
   nextTick(() => {
     onClickExpand(true);
+    const end = performance.now();
+      times.value = end - start;
+      VxeUI.modal.message({
+        content: `Tree building time: ${end - start}ms`,
+        status: 'success'
+      })
+    tableConfig.value.loading = false;
   })
 }
 
@@ -293,15 +338,21 @@ const fieldModel = ref([])
 const field2 = ref([])
 const xTable = ref();
 
-const handlerSearch = async () => {
-  // data.value = await mockData();
-  // cloneData.value = cloneDeep(data.value);
-  handlerDate(activeDateType.value);
+const handlerSearch = () => {
+  tableConfig.value.loading = true;
+  timer = setTimeout(async () => {
+    data.value = await mockData();
+    cloneData.value = cloneDeep(data.value);
+    handlerDate(activeDateType.value);
+  }, INTERVAL)
 }
-onMounted(async () => {
-  console.log(await mockData())
-  // data.value = await mockData();
-  cloneData.value = cloneDeep(data.value);
+onMounted(() => {
+  tableConfig.value.loading = true;
+  timer = setTimeout(async () => {
+    data.value = await mockData();
+    cloneData.value = cloneDeep(data.value);
+    tableConfig.value.loading = false;
+  }, INTERVAL)
 })
 
 const expandAll = ref(true);
@@ -314,11 +365,12 @@ const onClickExpand = (expand) => {
 <template>
   <div style="width: 100vw;padding: 10px;">
     <div>
-      <vxe-button v-for="btn in buttons" :key="btn.key" @click="handlerDate(btn.key)">
+      <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
         {{ btn.text }}
       </vxe-button>
       <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
       <vxe-button @click="handlerSearch">查询</vxe-button>
+      {{ times }}ms
 
       <vxe-select :options="defaultCols" v-model="fieldModel" multiple style="width: 200px"
         :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
@@ -328,10 +380,7 @@ const onClickExpand = (expand) => {
         clearable />
     </div>
     <div style="height: 90vh;width: 90vw">
-      <vxe-grid ref="xTable" v-bind="tableConfig" :data="data" :columns="columns" border header-align="center" height="600" :row-config="{ height: 24 }"
-        show-overflow :column-config="{ resizable: true }" :scroll-y="{ enabled: true, gt: 0, mode: 'wheel' }"
-        :scroll-x="{ enabled: true, gt: 0 }"
-        :tree-config="{ childrenField: 'children', rowField: '_id', parentField: '_parentId', expandAll: true }"/>
+      <vxe-grid ref="xTable" v-bind="tableConfig" :data="data" :columns="columns" />
     </div>
   </div>
 </template>

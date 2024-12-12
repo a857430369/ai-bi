@@ -1,4 +1,4 @@
-const COUNT = 1000;
+const COUNT = 500;
 
 const generateRandomData = async () => {
   const startTime = new Date().getTime(); // Start time
@@ -12,7 +12,7 @@ const generateRandomData = async () => {
   const combinations = ['标准版', '豪华版', '至尊版', '入门版', '商务版', '游戏版', '专业版', '定制版', '限量版', '纪念版',
     '典藏版', '简约版', '高配版', '低配版', '特供版', '出口版', '内销版', '工程版', '教育版', '企业版'];
 
-  // const products = ['笔记本电脑', '智能手机'];
+  // const products = ['笔记本电脑', '智能手机', '平板电脑', '智能手表', '内存条', '电源', '机箱', '散热器', '主板'];
   
   // const types = ['直接销售', '代理销售'];
   
@@ -53,8 +53,8 @@ const generateRandomData = async () => {
     // 随机选择一个客户
     const customer = customers[Math.floor(Math.random() * customers.length)];
     
-    // 扩展时间维度，5年内的数据
-    const createDate = new Date(2021 + Math.floor(Math.random() * 5), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28));
+    // 扩展时间维度，3年的数据
+    const createDate = new Date(2020 + Math.floor(Math.random() * 3), Math.floor(Math.random() * 12), Math.floor(Math.random() * 28));
     const inquiryTime = new Date(createDate.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000); // 询价时间
     const quotationTime = new Date(inquiryTime.getTime() + Math.random() * 3 * 24 * 60 * 60 * 1000); // 报价时间
     const orderDate = new Date(createDate.getTime() + Math.random() * 30 * 24 * 60 * 60 * 1000); // 下单时间
