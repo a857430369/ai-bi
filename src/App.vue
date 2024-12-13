@@ -4,11 +4,12 @@ import dayjs from 'dayjs';
 import { ref, nextTick, onMounted } from 'vue';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import currency from "currency.js"
-import { cloneDeep, uniq } from 'lodash';
+import { cloneDeep, flatMap, uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { VxeUI } from 'vxe-table'
 // import dataJson from "./data.json"
 import utc from 'dayjs/plugin/utc';
+import { Chart } from '@antv/g2';
 
 dayjs.extend(utc);
 // TODO 图表功能
@@ -23,6 +24,8 @@ dayjs.extend(utc);
 const FIELD_BY_TIME = "createTime"; // 该字段可动态配置
 // TODO 固定第一项位置
 const FIELD_FIRST = 3;
+// 数据分隔符
+const SPLIT_CHAR = "_";
 // const mockData = () => Promise.resolve(dataJson);
 
 dayjs.extend(weekOfYear);
@@ -42,7 +45,6 @@ function flattenData(nodes) {
   nodes.forEach(node => recurse(node));
   return flatList;
 }
-
 
 const data = ref([]);
 const cloneData = ref(cloneDeep(data.value));
@@ -209,7 +211,7 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
     return bol;
   });
 
-  let arr = cols.map(key => ({ field: key, title: key, width: 120, children: innerCols.map(i => Object.assign({}, i, { field: key + i.field })) }));
+  let arr = cols.map(key => ({ field: key, title: key, width: 120, children: innerCols.map(i => Object.assign({}, i, { field: key + SPLIT_CHAR + i.field })) }));
   removeCols = fieldModel.value.length > 1 ? removeCols.concat(...fieldModel.value) : removeCols
 
   dCols = dCols.filter(item => !removeCols.includes(item.field))
@@ -217,7 +219,7 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
   let index = fieldModel.value.length > 1 ? (FIELD_FIRST - 1) : FIELD_FIRST
   // TODO 该定位需要优化
   dCols.splice(index, 0, ...arr)
-  return dCols
+  return { dCols, crossCols: [...arr.map(i => i.children)] }
 }
 const activeDateType = ref('year');
 
@@ -252,6 +254,14 @@ const tableConfig = ref({
 let timer;
 const INTERVAL = 300;
 const onHnadlerDate = (type) => {
+  if (!fieldModel.value.length || !field2.value.length) {
+    VxeUI.modal.message({
+      content: '请组合数据维度',
+      status: 'warning'
+    })
+    return;
+  }
+
   tableConfig.value.loading = true;
   clearTimeout(timer);
   timer = setTimeout(() => {
@@ -261,7 +271,9 @@ const onHnadlerDate = (type) => {
 }
 
 const times = ref(0);
+const crossColsList = ref([]);
 const handlerDate = (type) => {
+
   console.log(cloneDeep(cloneData.value))
   data.value = cloneDeep(cloneData.value);
   let oldData = cloneDeep(cloneData.value);
@@ -300,7 +312,7 @@ const handlerDate = (type) => {
       Array.from(map.entries()).forEach(([key, value]) => {
         value.forEach(item => {
           field2.value.forEach(field => {
-            let fieldKey = key + field;
+            let fieldKey = key + SPLIT_CHAR + field;
             item[fieldKey] = item[field];
 
             let parentId = item._parentId || item[fieldModel.value[0]];
@@ -311,7 +323,7 @@ const handlerDate = (type) => {
         let arr = Array.from(dataMap.values());
         let obj = arr[0];
         field2.value.forEach(field => {
-          let fieldKey = key + field;
+          let fieldKey = key + SPLIT_CHAR + field;
           obj[fieldKey] = value.reduce((sum, item) => currency(sum).add(item[fieldKey]).value, 0);
           obj.num = currency(obj.num).add(value.length).value;
         })
@@ -355,7 +367,10 @@ const handlerDate = (type) => {
 
   const defaultCols = defaultColumns();
   const colsMap = new Map(defaultCols.map(item => [item.field, item]));
-  columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultCols, targetCols: field2.value })
+
+  const { dCols, crossCols } = handlerMergeHeaderCols({ cols, defaultColumns: defaultCols, targetCols: field2.value })
+  crossColsList.value = flatMap(crossCols);
+  columns.value = dCols;
   if (fieldModel.value.length > 1) {
     // TODO 固定位置
     columns.value.splice(FIELD_FIRST - 1, 0, {
@@ -388,17 +403,28 @@ const field2 = ref([])
 const xTable = ref();
 
 const handlerSearch = () => {
+  if (!fieldModel.value.length || !field2.value.length) {
+    VxeUI.modal.message({
+      content: '请组合数据维度',
+      status: 'warning'
+    })
+    return;
+  }
+
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
     data.value = await mockData();
     cloneData.value = cloneDeep(data.value);
     handlerDate(activeDateType.value);
+
+    if (mode.value === 'chart') {
+      renderChartHook();
+    }
   }, INTERVAL)
 }
 onMounted(() => {
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
-    data.value = await mockData();
     cloneData.value = cloneDeep(data.value);
     tableConfig.value.loading = false;
   }, INTERVAL)
@@ -409,6 +435,73 @@ const onClickExpand = (expand) => {
   expandAll.value = expand || !expandAll.value;
   xTable.value?.setAllTreeExpand(expandAll.value);
 }
+
+const mode = ref("table");
+const renderChart = () => {
+  mode.value = "chart";
+  nextTick(() => {
+    renderChartHook();
+  })
+}
+
+const chartIds = ref([]);
+const renderChartHook = () => {
+  const { fullData } = xTable.value.getTableData()
+  let arr1 = fieldModel.value;
+  let arr2 = crossColsList.value.map(i => i.field);
+  chartIds.value = arr1.concat(arr2);
+
+  nextTick(() => {
+    arr1.forEach(id => {
+      // 初始化图表实例
+      const chart = new Chart({
+        container: id,
+        autoFit: true
+      });
+      // chart.coordinate({ type: 'theta', outerRadius: 0.8 });
+      // 声明可视化
+      chart
+        .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
+        .data(fullData) // 绑定数据
+        .transform({ type: 'stackY' })
+        .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+        .encode('x', id) // 编码 x 通道
+        .encode('y', field2.value[0]) // 编码 y 通道
+        .scrollbar({
+          x: {},
+        })
+        .axis('x', {})
+
+      // 渲染可视化
+      chart.render();
+    })
+    arr2.forEach(id => {
+      // 初始化图表实例
+      const chart = new Chart({
+        container: id,
+        autoFit: true
+      });
+
+      chart.title(id.split(SPLIT_CHAR).shift());
+
+      // 声明可视化
+      chart
+        .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
+        .data(fullData) // 绑定数据
+        .transform({ type: 'stackY' })
+        .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+        .encode('x', fieldModel.value[0]) // 编码 x 通道
+        .encode('y', id)// 编码 y 通道
+        .scrollbar({
+          x: {},
+        })
+        .axis('x', {})
+
+      // 渲染可视化
+      chart.render();
+    })
+  })
+}
 </script>
 
 <template>
@@ -418,11 +511,14 @@ const onClickExpand = (expand) => {
         {{ btn.text }}
         <template #dropdowns>
           <div style="height: 200px;overflow: auto;display: flex;flex-direction: column;">
-            <vxe-button v-for="col in defaultCols" mode="text" :content="col.title" style="height: 100px;line-height: 100px;"></vxe-button>
+            <vxe-button v-for="col in defaultCols" mode="text" :content="col.title"
+              style="height: 100px;line-height: 100px;"></vxe-button>
           </div>
         </template>
       </vxe-button>
       <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
+      <vxe-button v-if="mode === 'table'" @click="renderChart">报表</vxe-button>
+      <vxe-button v-else @click="mode = 'table'">列表</vxe-button>
       <vxe-button @click="handlerSearch">查询</vxe-button>
       {{ times }}ms
 
@@ -433,7 +529,12 @@ const onClickExpand = (expand) => {
         :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
         clearable />
     </div>
-    <div style="height: 90vh;width: 90vw">
+
+    <div id="chart-container" v-show="mode === 'chart'" style="display: flex;align-items: center;flex-wrap: wrap;">
+      <div v-for="id in chartIds" :key="id" :id="id"></div>
+    </div>
+
+    <div v-show="mode === 'table'" style="height: 90vh;width: 90vw">
       <vxe-grid ref="xTable" v-bind="tableConfig" :data="data" :columns="columns" />
     </div>
   </div>
@@ -443,5 +544,10 @@ const onClickExpand = (expand) => {
 :deep(.has-children) {
   background-color: #f0f0f0;
   font-weight: bold;
+}
+
+#chart-container>div {
+  height: 400px;
+  width: 50%;
 }
 </style>

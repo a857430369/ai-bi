@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@antv/g2": "^5.2.10",
     "ant-design-vue": "^4.2.6",
     "currency.js": "^2.0.4",
     "dayjs": "^1.11.13",
