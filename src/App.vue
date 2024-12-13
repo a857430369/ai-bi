@@ -352,11 +352,12 @@ const handlerDate = (type) => {
   data.value = flatData;
   cols = uniq(cols).sort();
 
-  columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultColumns(), targetCols: field2.value })
+  const defaultCols = defaultColumns();
+  columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultCols, targetCols: field2.value })
   if (fieldModel.value.length > 1) {
     // TODO 固定位置
     columns.value.splice(FIELD_FIRST-1, 0, {
-      title: defaultColumns()
+      title: defaultCols
         .filter(item => fieldModel.value.includes(item.field))
         .map(item => item.title)
         .join('/'),
