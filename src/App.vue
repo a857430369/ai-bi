@@ -11,6 +11,7 @@ import { VxeUI } from 'vxe-table'
 import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
+// TODO 横向分组无限嵌套
 // TODO 图表功能
 // TODO 需要做footer统计
 // TODO 未来需要分析字段是否要做合并项目
@@ -209,11 +210,11 @@ const handlerMergeHeaderCols = ({ cols, defaultColumns, targetCols }) => {
   });
 
   let arr = cols.map(key => ({ field: key, title: key, width: 120, children: innerCols.map(i => Object.assign({}, i, { field: key + i.field })) }));
-  removeCols = fieldModel.value.length > 1? removeCols.concat(...fieldModel.value) : removeCols
+  removeCols = fieldModel.value.length > 1 ? removeCols.concat(...fieldModel.value) : removeCols
 
-  dCols = dCols.filter(item =>  !removeCols.includes(item.field))
+  dCols = dCols.filter(item => !removeCols.includes(item.field))
 
-  let index = fieldModel.value.length > 1? (FIELD_FIRST - 1) : FIELD_FIRST
+  let index = fieldModel.value.length > 1 ? (FIELD_FIRST - 1) : FIELD_FIRST
   // TODO 该定位需要优化
   dCols.splice(index, 0, ...arr)
   return dCols
@@ -353,13 +354,13 @@ const handlerDate = (type) => {
   cols = uniq(cols).sort();
 
   const defaultCols = defaultColumns();
+  const colsMap = new Map(defaultCols.map(item => [item.field, item]));
   columns.value = handlerMergeHeaderCols({ cols, defaultColumns: defaultCols, targetCols: field2.value })
   if (fieldModel.value.length > 1) {
     // TODO 固定位置
-    columns.value.splice(FIELD_FIRST-1, 0, {
-      title: defaultCols
-        .filter(item => fieldModel.value.includes(item.field))
-        .map(item => item.title)
+    columns.value.splice(FIELD_FIRST - 1, 0, {
+      title: fieldModel.value
+        .map(i => colsMap.get(i)?.title)
         .join('/'),
       field: '_path',
       width: 220,
