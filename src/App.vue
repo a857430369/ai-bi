@@ -11,8 +11,8 @@ import { VxeUI } from 'vxe-table'
 import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
-// TODO 横向分组无限嵌套
 // TODO 图表功能
+// TODO 横向分组无限嵌套
 // TODO 需要做footer统计
 // TODO 未来需要分析字段是否要做合并项目
 // TODO 未来需要分析字段是否要做平均计算
@@ -416,6 +416,11 @@ const onClickExpand = (expand) => {
     <div>
       <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
         {{ btn.text }}
+        <template #dropdowns>
+          <div style="height: 200px;overflow: auto;display: flex;flex-direction: column;">
+            <vxe-button v-for="col in defaultCols" mode="text" :content="col.title" style="height: 100px;line-height: 100px;"></vxe-button>
+          </div>
+        </template>
       </vxe-button>
       <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
       <vxe-button @click="handlerSearch">查询</vxe-button>
