@@ -356,7 +356,7 @@ const handlerDate = (type) => {
   if (fieldModel.value.length > 1) {
     // TODO 固定位置
     columns.value.splice(FIELD_FIRST-1, 0, {
-      title: columns.value
+      title: defaultColumns()
         .filter(item => fieldModel.value.includes(item.field))
         .map(item => item.title)
         .join('/'),
