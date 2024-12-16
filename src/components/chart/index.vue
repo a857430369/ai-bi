@@ -83,7 +83,39 @@ const renderChart = (data, x, y, optoin) => {
           .tooltip(false)
 
         break;
+      case 'complex':
+        const scaleColor = (node) =>
+          node.scale('color', {
+            palette: 'cool',
+            offset: (t) => t * 0.8 + 0.1,
+          });
 
+        const layer = chart.spaceLayer().data(data);
+        // 柱图
+        layer
+          .interval()
+          .attr('paddingLeft', 50)
+          .transform({ type: 'sortX', reverse: true, by: 'y' })
+          .encode('x', x)
+          .encode('y', y)
+          .encode('color', x)
+          .call(scaleColor);
+
+        // 饼图
+        layer
+          .interval()
+          .attr('x', 300)
+          .attr('y', 50)
+          .attr('paddingLeft', 400)
+          .attr('paddingBottom', 200)
+          .coordinate({ type: 'theta' })
+          .transform({ type: 'stackY' })
+          .legend(false)
+          .encode('y', y)
+          .encode('color', x)
+          .call(scaleColor);
+
+        break;
       default:
         // 声明可视化
         chart[chartType.value]({ maxWidth: 40 }) // 创建一个 Interval 标记
@@ -138,6 +170,8 @@ defineExpose({
           :status="chartType === 'line' ? 'primary' : 'default'">折线图</vxe-button>
         <vxe-button @click="changeChartType('line-date')"
           :status="chartType === 'line-date' ? 'primary' : 'default'">日渐图</vxe-button>
+        <vxe-button @click="changeChartType('complex')"
+          :status="chartType === 'complex' ? 'primary' : 'default'">复合图</vxe-button>
       </div>
     </template>
     <div :id="id" style="width: 100%;height: 100%;"></div>

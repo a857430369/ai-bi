@@ -582,7 +582,7 @@ const renderChartHook = () => {
 
 #chart-container .chart-item {
   height: 500px;
-  width: 50%;
+  width: 100%;
   margin: 6px 0;
 }
 
