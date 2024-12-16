@@ -10,6 +10,7 @@ const cacheOption = ref(null)
 
 const renderChart = (data, x, y, optoin) => {
   nextTick(() => {
+    // TODO后续丰富代码
     // 初始化图表实例
     const chart = new Chart({
       container: props.id,
@@ -18,7 +19,7 @@ const renderChart = (data, x, y, optoin) => {
     optoin && chart.options(optoin);
     switch (chartType.value) {
       case 'pie':
-        chart.coordinate({ type: 'theta' });
+        chart.coordinate({ type: 'theta', outerRadius: 0.8 });
 
         // 声明可视化
         chart
@@ -28,6 +29,23 @@ const renderChart = (data, x, y, optoin) => {
           .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
           .encode('color', x)
           .encode('y', y) // 编码 y 通道
+          .label({
+            position: 'spider',
+            text: (data) => `${data[x]}: ${data[y]}`,
+          })
+        break;
+      case 'line':
+        // 声明可视化
+        chart[chartType.value]({ maxWidth: 40 }) // 创建一个 Interval 标记
+          .data(data) // 绑定数据
+          .transform({ type: 'stackY' })
+          .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+          .encode('x', x) // 编码 x 通道
+          .encode('y', y) // 编码 y 通道
+          .scrollbar({
+            x: {},
+          })
+          .axis('x', {})
           .label({
             position: 'outside',
             text: (data) => `${data[x]}: ${data[y]}`,
@@ -41,6 +59,9 @@ const renderChart = (data, x, y, optoin) => {
           .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
           .encode('x', x) // 编码 x 通道
           .encode('y', y) // 编码 y 通道
+          // .transform({ type: 'sortX', by: 'y', reverse: true, slice: 6 })
+          .encode('color', x)
+          // .style('maxWidth', 20)
           .scrollbar({
             x: {},
           })

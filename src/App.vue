@@ -278,11 +278,8 @@ const handlerDate = (type) => {
   data.value = cloneDeep(cloneData.value);
   let oldData = cloneDeep(cloneData.value);
 
-  let lastLevel = 0;
-
   let cols = [];
   const buildTree = (data, fields, level = 0, path = '', parentId = null) => {
-    lastLevel = level;
     if (!fields?.length || !data?.length) {
       return [];
     }
@@ -448,16 +445,31 @@ const chartIds = ref([]);
 const chartRefs = ref({});
 const renderChartHook = () => {
   const { fullData } = xTable.value.getTableData()
-  let arr1 = fieldModel.value;
+  let arr1 = field2.value;
   let arr2 = crossColsList.value.map(i => i.field);
   chartIds.value = arr1.concat(arr2);
 
+  // 合计数据
+  const countData = cloneDeep(fullData);
+  // 清空数据
+  countData.forEach(item => {
+    arr1.forEach(id => {
+      item[id] = 0;
+    })
+  })
+  // 统计数据
+  countData.forEach(item => {
+    arr2.forEach(id => {
+      let key = id.split(SPLIT_CHAR).pop()
+      item[key] = currency(item[key]).add(item[id]).value;
+    })
+  })
   nextTick(() => {
     arr1.forEach(id => {
-      chartRefs.value[id].renderChart(fullData, id, field2.value[0]);
+      chartRefs.value[id].renderChart(countData, fieldModel.value[0], id, { title: id });
     })
     arr2.forEach(id => {
-      chartRefs.value[id].renderChart(fullData, fieldModel.value[0], id, { title: id.split(SPLIT_CHAR).shift() });
+      chartRefs.value[id].renderChart(fullData, fieldModel.value[0], id, { title: id });
     })
     // console.log(chartIds.value)
     // console.log(chartRefs.value);
@@ -543,7 +555,7 @@ const renderChartHook = () => {
 
     <div id="chart-container" v-show="mode === 'chart'">
       <div v-for="item in chartIds" class="chart-item">
-        <div >
+        <div>
           <ChartComponent :key="id" :ref="(el) => chartRefs[item] = el" :id="item"></ChartComponent>
         </div>
       </div>
@@ -573,7 +585,8 @@ const renderChartHook = () => {
   width: 50%;
   margin: 6px 0;
 }
-#chart-container .chart-item >div{
+
+#chart-container .chart-item>div {
   padding: 6px;
   width: 100%;
   height: 100%;
