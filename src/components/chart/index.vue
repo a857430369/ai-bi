@@ -41,12 +41,11 @@ const renderChart = (data, x, y, optoin) => {
       case 'line-date':
         chart
           .data(cacheExtra.value.flatData)
+          .transform({ type: 'normalizeY', basis: 'first', groupBy: 'color' })
           .encode('x', 'createTime')
           .encode('y', y.split('_').pop())
           .encode('color', x)
-          .scale('y', {
-            nice: true,
-          })
+          .scale('y', { type: 'log' })
           .axis('x', { labelFormatter: (d) => dayjs(d).format('YYYY-MM-DD') });
 
         chart
