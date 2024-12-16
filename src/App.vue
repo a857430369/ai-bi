@@ -10,6 +10,7 @@ import { VxeUI } from 'vxe-table'
 // import dataJson from "./data.json"
 import utc from 'dayjs/plugin/utc';
 import { Chart } from '@antv/g2';
+import ChartComponent from './components/chart/index.vue';
 
 dayjs.extend(utc);
 // TODO 图表功能
@@ -505,7 +506,7 @@ const renderChartHook = () => {
 </script>
 
 <template>
-  <div style="width: 100vw;padding: 10px;">
+  <div style="width: 100vw;padding: 10px;;">
     <div>
       <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
         {{ btn.text }}
@@ -530,8 +531,20 @@ const renderChartHook = () => {
         clearable />
     </div>
 
-    <div id="chart-container" v-show="mode === 'chart'" style="display: flex;align-items: center;flex-wrap: wrap;">
-      <div v-for="id in chartIds" :key="id" :id="id"></div>
+    <div id="chart-container" v-show="mode === 'chart'">
+      <div v-for="id in chartIds" :key="id" class="chart-item">
+        <ChartComponent :id="id"></ChartComponent>
+        <!-- <vxe-card title=" " style="width: 100%;height: 100%;">
+          <template #extra>
+            <div class="bg3">
+              <vxe-button>柱状图</vxe-button>
+              <vxe-button>饼图</vxe-button>
+              <vxe-button>折线图</vxe-button>
+            </div>
+          </template>
+          <div :id="id" style="width: 100%;height: 100%;"></div>
+        </vxe-card> -->
+      </div>
     </div>
 
     <div v-show="mode === 'table'" style="height: 90vh;width: 90vw">
@@ -546,8 +559,15 @@ const renderChartHook = () => {
   font-weight: bold;
 }
 
-#chart-container>div {
+#chart-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#chart-container .chart-item {
   height: 400px;
-  width: 50%;
+  width: calc(50% - 12px);
+  padding: 6px;
 }
 </style>
