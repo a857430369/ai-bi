@@ -469,7 +469,7 @@ const renderChartHook = () => {
       chartRefs.value[id].renderChart(countData, fieldModel.value[0], id, { title: id });
     })
     arr2.forEach(id => {
-      chartRefs.value[id].renderChart(fullData, fieldModel.value[0], id, { title: id });
+      chartRefs.value[id].renderChart(fullData, fieldModel.value[0], id, { title: id }, { flatData: cloneData.value });
     })
     // console.log(chartIds.value)
     // console.log(chartRefs.value);
