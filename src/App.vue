@@ -9,7 +9,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { VxeUI } from 'vxe-table'
 // import dataJson from "./data.json"
 import utc from 'dayjs/plugin/utc';
-import { Chart } from '@antv/g2';
 import ChartComponent from './components/chart/index.vue';
 
 dayjs.extend(utc);
@@ -446,6 +445,7 @@ const renderChart = () => {
 }
 
 const chartIds = ref([]);
+const chartRefs = ref({});
 const renderChartHook = () => {
   const { fullData } = xTable.value.getTableData()
   let arr1 = fieldModel.value;
@@ -454,59 +454,69 @@ const renderChartHook = () => {
 
   nextTick(() => {
     arr1.forEach(id => {
-      // 初始化图表实例
-      const chart = new Chart({
-        container: id,
-        autoFit: true
-      });
-      // chart.coordinate({ type: 'theta', outerRadius: 0.8 });
-      // 声明可视化
-      chart
-        .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
-        .data(fullData) // 绑定数据
-        .transform({ type: 'stackY' })
-        .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
-        .encode('x', id) // 编码 x 通道
-        .encode('y', field2.value[0]) // 编码 y 通道
-        .scrollbar({
-          x: {},
-        })
-        .axis('x', {})
-
-      // 渲染可视化
-      chart.render();
+      chartRefs.value[id].renderChart(fullData, id, field2.value[0]);
     })
     arr2.forEach(id => {
-      // 初始化图表实例
-      const chart = new Chart({
-        container: id,
-        autoFit: true
-      });
-
-      chart.title(id.split(SPLIT_CHAR).shift());
-
-      // 声明可视化
-      chart
-        .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
-        .data(fullData) // 绑定数据
-        .transform({ type: 'stackY' })
-        .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
-        .encode('x', fieldModel.value[0]) // 编码 x 通道
-        .encode('y', id)// 编码 y 通道
-        .scrollbar({
-          x: {},
-        })
-        .axis('x', {})
-
-      // 渲染可视化
-      chart.render();
+      chartRefs.value[id].renderChart(fullData, fieldModel.value[0], id, { title: id.split(SPLIT_CHAR).shift() });
     })
+    // console.log(chartIds.value)
+    // console.log(chartRefs.value);
+    // nextTick(() => {
+    // })
+    // arr1.forEach(id => {
+    //   // 初始化图表实例
+    //   const chart = new Chart({
+    //     container: id,
+    //     autoFit: true
+    //   });
+    //   // chart.coordinate({ type: 'theta', outerRadius: 0.8 });
+    //   // 声明可视化
+    //   chart
+    //     .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
+    //     .data(fullData) // 绑定数据
+    //     .transform({ type: 'stackY' })
+    //     .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+    //     .encode('x', id) // 编码 x 通道
+    //     .encode('y', field2.value[0]) // 编码 y 通道
+    //     .scrollbar({
+    //       x: {},
+    //     })
+    //     .axis('x', {})
+
+    //   // 渲染可视化
+    //   chart.render();
+    // })
+    // arr2.forEach(id => {
+    //   // 初始化图表实例
+    //   const chart = new Chart({
+    //     container: id,
+    //     autoFit: true
+    //   });
+
+    //   chart.title(id.split(SPLIT_CHAR).shift());
+
+    //   // 声明可视化
+    //   chart
+    //     .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
+    //     .data(fullData) // 绑定数据
+    //     .transform({ type: 'stackY' })
+    //     .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
+    //     .encode('x', fieldModel.value[0]) // 编码 x 通道
+    //     .encode('y', id)// 编码 y 通道
+    //     .scrollbar({
+    //       x: {},
+    //     })
+    //     .axis('x', {})
+
+    //   // 渲染可视化
+    //   chart.render();
+    // })
   })
 }
 </script>
 
 <template>
-  <div style="width: 100vw;padding: 10px;;">
+  <div style="width: 100vw;overflow: auto;">
     <div>
       <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
         {{ btn.text }}
@@ -532,18 +542,10 @@ const renderChartHook = () => {
     </div>
 
     <div id="chart-container" v-show="mode === 'chart'">
-      <div v-for="id in chartIds" :key="id" class="chart-item">
-        <ChartComponent :id="id"></ChartComponent>
-        <!-- <vxe-card title=" " style="width: 100%;height: 100%;">
-          <template #extra>
-            <div class="bg3">
-              <vxe-button>柱状图</vxe-button>
-              <vxe-button>饼图</vxe-button>
-              <vxe-button>折线图</vxe-button>
-            </div>
-          </template>
-          <div :id="id" style="width: 100%;height: 100%;"></div>
-        </vxe-card> -->
+      <div v-for="item in chartIds" class="chart-item">
+        <div >
+          <ChartComponent :key="id" :ref="(el) => chartRefs[item] = el" :id="item"></ChartComponent>
+        </div>
       </div>
     </div>
 
@@ -560,14 +562,20 @@ const renderChartHook = () => {
 }
 
 #chart-container {
+  width: 80vw;
   display: flex;
-  align-items: center;
+  /* align-items: center; */
   flex-wrap: wrap;
 }
 
 #chart-container .chart-item {
-  height: 400px;
-  width: calc(50% - 12px);
+  height: 500px;
+  width: 50%;
+  margin: 6px 0;
+}
+#chart-container .chart-item >div{
   padding: 6px;
+  width: 100%;
+  height: 100%;
 }
 </style>
