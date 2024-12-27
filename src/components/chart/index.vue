@@ -1,5 +1,5 @@
 <script setup>
-import { Chart } from '@antv/g2';
+import * as echarts from 'echarts';
 import dayjs from 'dayjs';
 import { nextTick, ref } from 'vue';
 const props = defineProps({ id: String, data: Array })
@@ -10,7 +10,7 @@ const cacheY = ref(null)
 const cacheOption = ref(null)
 const cacheExtra = ref({})
 
-const renderChart = (data, x, y, optoin) => {
+const renderChartV1 = (data, x, y, optoin) => {
   nextTick(() => {
     // TODO后续丰富代码
     // 初始化图表实例
@@ -136,6 +136,37 @@ const renderChart = (data, x, y, optoin) => {
 
     // 渲染可视化
     chart.render();
+  })
+}
+const renderChart = (data, x, y, optoin) => {
+  // 基于准备好的dom，初始化echarts实例
+  const myChart = echarts.init(document.getElementById(props.id));
+  let yData = [];
+  const xData = Array.from(new Set(data.map(item => {
+    yData.push(item[y])
+    return item[x]
+  })))
+
+  // 绘制图表
+  myChart.setOption({
+    title: {
+      text: `${props.id}`
+    },
+    tooltip: {},
+    xAxis: {
+      data: xData
+    },
+    yAxis: {},
+    series: [
+      {
+        name: y,
+        type: 'bar',
+        data: yData
+      }
+    ]
+  });
+  nextTick(() => {
+    myChart.resize()
   })
 }
 const renderChartBindData = (data, x, y, optoin, extra) => {

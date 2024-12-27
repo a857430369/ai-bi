@@ -1,6 +1,6 @@
-const COUNT = 10000;
+const GOL_COUNT = 10000;
 
-const generateRandomData = async () => {
+const generateRandomData = async (COUNT) => {
   const startTime = new Date().getTime(); // Start time
 
   const products = ['笔记本电脑', '智能手机', '平板电脑', '智能手表', '耳机', '显示器', '键盘', '鼠标', '打印机', '路由器',
@@ -155,4 +155,5 @@ const generateRandomData = async () => {
   return mockData;
 };
 
-export const mockData = generateRandomData;
+export const mockData = () => generateRandomData(GOL_COUNT);
+export const customerMockData = generateRandomData;

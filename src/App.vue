@@ -19,6 +19,7 @@ dayjs.extend(utc);
 // TODO 未来需要分析字段是否要做平均计算
 // TODO 多维度合并表头
 // TODO 可能创建一个新的组件做合并项数据分析
+// TODO 导出功能
 
 // TODO 根据创建时间进行时间分析
 const FIELD_BY_TIME = "createTime"; // 该字段可动态配置
@@ -582,7 +583,7 @@ const renderChartHook = () => {
 
 #chart-container .chart-item {
   height: 500px;
-  width: 100%;
+  width: 50%;
   margin: 6px 0;
 }
 
