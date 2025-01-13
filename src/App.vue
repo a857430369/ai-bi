@@ -1,25 +1,28 @@
 <script setup>
 import { mockData } from './mock';
 import dayjs from 'dayjs';
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, nextTick, onMounted, watch } from 'vue';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import currency from "currency.js"
 import { cloneDeep, flatMap, uniq } from 'lodash';
 import { v4 as uuidv4 } from 'uuid';
 import { VxeUI } from 'vxe-table'
-// import dataJson from "./data.json"
 import utc from 'dayjs/plugin/utc';
 import ChartComponent from './components/chart/index.vue';
+import { isArray } from 'lodash';
 
 dayjs.extend(utc);
-// TODO 图表功能
+// 图表功能 完成
+// TODO 柱状图，折线图，饼图
 // TODO 横向分组无限嵌套
-// TODO 需要做footer统计
+// 需要做footer统计 完成
 // TODO 未来需要分析字段是否要做合并项目
 // TODO 未来需要分析字段是否要做平均计算
 // TODO 多维度合并表头
 // TODO 可能创建一个新的组件做合并项数据分析
-// TODO 导出功能
+// 导出功能 完成
+// TODO 导出功能header没有
+// TODO 可视化列设置
 
 // TODO 根据创建时间进行时间分析
 const FIELD_BY_TIME = "createTime"; // 该字段可动态配置
@@ -396,10 +399,22 @@ const handlerDate = (type) => {
   })
 }
 
-const fieldModel = ref([])
-const field2 = ref([])
+const fieldModel = ref(JSON.parse(localStorage.getItem('fieldModel')) || [])
+const field2 = ref(JSON.parse(localStorage.getItem('field2')) || [])
+
+watch(fieldModel, (newVal) => {
+  localStorage.setItem('fieldModel', JSON.stringify(newVal))
+}, { deep: true })
+
+watch(field2, (newVal) => {
+  localStorage.setItem('field2', JSON.stringify(newVal))
+}, { deep: true })
 const xTable = ref();
 
+const handlerReset = () => {
+  filterField.value = [{}]
+  handlerSearch();
+}
 const handlerSearch = () => {
   if (!fieldModel.value.length || !field2.value.length) {
     VxeUI.modal.message({
@@ -411,7 +426,23 @@ const handlerSearch = () => {
 
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
-    data.value = await mockData();
+    console.log(filterField.value)
+    let arr = await mockData();
+    arr = arr.filter(item => {
+      if (!filterField.value.filter(i => i.value)?.length) {
+        return true
+      }
+      return filterField.value.filter(i => i.value).every(field => {
+        if (isArray(field.value)) {
+          return field.value.includes(item[field.field])
+        }else if(field.value.indexOf(',') > -1) {
+          return field.value.split(',').includes(item[field.field])
+        } else {
+          return item[field.field] === field.value
+        }
+      })
+    })
+    data.value = arr;
     cloneData.value = cloneDeep(data.value);
     handlerDate(activeDateType.value);
 
@@ -426,6 +457,11 @@ onMounted(() => {
     cloneData.value = cloneDeep(data.value);
     tableConfig.value.loading = false;
   }, INTERVAL)
+})
+onMounted(() => {
+  if (fieldModel.value.length && field2.value.length) {
+    handlerSearch();
+  }
 })
 
 const expandAll = ref(true);
@@ -472,89 +508,142 @@ const renderChartHook = () => {
     arr2.forEach(id => {
       chartRefs.value[id].renderChart(fullData, fieldModel.value[0], id, { title: id }, { flatData: cloneData.value });
     })
-    // console.log(chartIds.value)
-    // console.log(chartRefs.value);
-    // nextTick(() => {
-    // })
-    // arr1.forEach(id => {
-    //   // 初始化图表实例
-    //   const chart = new Chart({
-    //     container: id,
-    //     autoFit: true
-    //   });
-    //   // chart.coordinate({ type: 'theta', outerRadius: 0.8 });
-    //   // 声明可视化
-    //   chart
-    //     .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
-    //     .data(fullData) // 绑定数据
-    //     .transform({ type: 'stackY' })
-    //     .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
-    //     .encode('x', id) // 编码 x 通道
-    //     .encode('y', field2.value[0]) // 编码 y 通道
-    //     .scrollbar({
-    //       x: {},
-    //     })
-    //     .axis('x', {})
-
-    //   // 渲染可视化
-    //   chart.render();
-    // })
-    // arr2.forEach(id => {
-    //   // 初始化图表实例
-    //   const chart = new Chart({
-    //     container: id,
-    //     autoFit: true
-    //   });
-
-    //   chart.title(id.split(SPLIT_CHAR).shift());
-
-    //   // 声明可视化
-    //   chart
-    //     .interval({ maxWidth: 40 }) // 创建一个 Interval 标记
-    //     .data(fullData) // 绑定数据
-    //     .transform({ type: 'stackY' })
-    //     .legend('color', { position: 'bottom', layout: { justifyContent: 'center' } })
-    //     .encode('x', fieldModel.value[0]) // 编码 x 通道
-    //     .encode('y', id)// 编码 y 通道
-    //     .scrollbar({
-    //       x: {},
-    //     })
-    //     .axis('x', {})
-
-    //   // 渲染可视化
-    //   chart.render();
-    // })
   })
+}
+const footerMethod = ({ data, columns }) => {
+  let arr = ['合计'];
+  columns.forEach((col, index) => {
+    data.forEach(item => {
+      if (!isNaN(Number(item[col.field]))) {
+        arr[index] = currency(arr[index] || 0).add(item[col.field]).value
+      }
+    })
+  })
+  return [
+    arr
+  ]
+}
+
+const showColumns = ref(false)
+const columnTableRef = ref();
+const onShowColumns = () => {
+  const arr = defaultCols.value
+    .filter(i => i.visible != false ? true : false)
+  showColumns.value = true;
+  setTimeout(() => {
+    columnTableRef.value.setCheckboxRow(arr, true);
+  }, 300)
+}
+const onExport = () => {
+  let filename = prompt("请输入文件名")
+  xTable.value.exportData({
+    type: 'csv',
+    filename: filename
+  })
+}
+const onAi = async () => {
+  let message = prompt("请输入你的述求")
+
+  const desc = `该数据为页面的列配置，所有信息都根据这里分析,以下就是列设置的数据源
+${JSON.stringify(defaultCols.value)}
+
+fieldModel,该信息是我的组件内设定的变量,作用是把数据变成变成二维或者多维度的数据呈现
+field2,该信息也是我的组件内设定的变量,作用是把数据统计起来的
+filterField 该信息为查询条件，作用是筛选数据
+
+
+请返回一个JSON字符串，格式为：{"fieldModel":["字段名"],"field2":["统计字段名"],"filterField":[{"field":"字段名","value":"值(支持字符串数组/逗号隔开)"}]}。
+字段名必须从列配置中选择，fieldModel用于数据分组展示,field2用于数据统计分析,filterField用于数据过滤。
+请直接返回JSON，不要有任何其他内容。
+
+接下来就是客户所描述的诉求:${message}
+`
+  const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer eab4087b1a1e48a697d8e03f24dd4f8f.xyXFxwohgmH3cxWm",
+      ["Content-Type"]: "application/json"
+    },
+    body: JSON.stringify({
+      "model": "glm-4v-flash",
+      "messages": [
+        {
+          "role": "user",
+          "content": desc
+        }
+      ]
+    })
+  }).then(body => body.json())
+  const { content } = res.choices[0].message
+  try {
+    const jsonContent = content.replace(/```json|```/g, '');
+    const { fieldModel: fieldModelData, field2: field2Data, filterField: filterFieldData } = JSON.parse(jsonContent)
+    fieldModel.value = fieldModelData
+    field2.value = field2Data
+    filterField.value = filterFieldData
+    handlerSearch();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+const filterField = ref([{
+  field: "",
+  value: ""
+}])
+const onAdd = () => {
+  filterField.value.push({});
+}
+const onDelete = () => {
+  filterField.value.pop();
 }
 </script>
 
 <template>
   <div style="width: 100vw;overflow: auto;">
-    <div>
-      <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
-        {{ btn.text }}
-        <template #dropdowns>
-          <div style="height: 200px;overflow: auto;display: flex;flex-direction: column;">
-            <vxe-button v-for="col in defaultCols" mode="text" :content="col.title"
-              style="height: 100px;line-height: 100px;"></vxe-button>
-          </div>
-        </template>
-      </vxe-button>
-      <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
-      <vxe-button v-if="mode === 'table'" @click="renderChart">报表</vxe-button>
-      <vxe-button v-else @click="mode = 'table'">列表</vxe-button>
-      <vxe-button @click="handlerSearch">查询</vxe-button>
-      {{ times }}ms
+    <div style="display: flex;justify-content: space-between;">
+      <div>
+        <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
+          {{ btn.text }}
+          <template #dropdowns>
+            <div style="height: 200px;overflow: auto;display: flex;flex-direction: column;">
+              <vxe-button v-for="col in defaultCols" mode="text" :content="col.title"
+                style="height: 100px;line-height: 100px;"></vxe-button>
+            </div>
+          </template>
+        </vxe-button>
+        <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
+        <vxe-button @click="onAi">AI</vxe-button>
+        <vxe-button @click="onShowColumns">配置</vxe-button>
+        <vxe-button v-if="mode === 'table'" @click="renderChart">报表</vxe-button>
+        <vxe-button v-else @click="mode = 'table'">列表</vxe-button>
+        <vxe-button @click="handlerReset">重置</vxe-button>
+        <vxe-button @click="handlerSearch">查询</vxe-button>
 
-      <vxe-select :options="defaultCols" v-model="fieldModel" multiple style="width: 200px"
-        :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
-        clearable />
-      <vxe-select :options="defaultCols" v-model="field2" multiple style="width: 200px"
-        :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
-        clearable />
+        <vxe-select :options="defaultCols" v-model="fieldModel" multiple style="width: 200px"
+          :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
+          clearable />
+        <vxe-select :options="defaultCols" v-model="field2" multiple style="width: 200px"
+          :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
+          clearable />
+        {{ times }}ms
+      </div>
+      <div>
+        <vxe-button @click="onExport">导出</vxe-button>
+      </div>
+    </div>
+    <div style="display: flex;">
+      <div v-for="item in filterField">
+        <vxe-select v-model="item.field" :options="defaultCols" placeholder="请输入内容"
+          :option-config="{ useKey: 'field', keyField: 'field' }" :option-props="{ value: 'field', label: 'title' }"
+          clearable></vxe-select>
+        <vxe-input v-model="item.value" placeholder="请输入内容"></vxe-input>
+      </div>
+      <vxe-button @click="onDelete()">删除</vxe-button>
+      <vxe-button @click="onAdd()">添加</vxe-button>
     </div>
 
-    <div id="chart-container" v-show="mode === 'chart'">
+    <div id=" chart-container" v-show="mode === 'chart'">
       <div v-for="item in chartIds" class="chart-item">
         <div>
           <ChartComponent :key="id" :ref="(el) => chartRefs[item] = el" :id="item"></ChartComponent>
@@ -563,8 +652,23 @@ const renderChartHook = () => {
     </div>
 
     <div v-show="mode === 'table'" style="height: 90vh;width: 90vw">
-      <vxe-grid ref="xTable" v-bind="tableConfig" :data="data" :columns="columns" />
+      <vxe-grid ref="xTable" v-bind="tableConfig" :data="data" :columns="columns" :footer-method="footerMethod"
+        show-footer />
     </div>
+    <vxe-modal v-model="showColumns" height="80vh" width="40vw">
+      <div style="height:100%">
+        <vxe-grid ref="columnTableRef" border :columns="[{
+          field: 'title', title: '标题', filters: [
+            { value: '' }
+          ],
+          filterRender: { name: 'input' },
+          filterMethod({ option, row, column }) {
+            return true
+          },
+        }, { field: 'visible', title: '显示', type: 'checkbox', width: 80, align: 'center' }]" :data="defaultCols"
+          height="100%"></vxe-grid>
+      </div>
+    </vxe-modal>
   </div>
 </template>
 
