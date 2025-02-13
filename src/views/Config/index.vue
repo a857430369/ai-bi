@@ -1,15 +1,26 @@
 <script lang="ts" setup>
 import { ref } from "vue";
 import { VxeGridPropTypes } from "vxe-pc-ui";
+import { format } from 'sql-formatter';
 
-const columns = ref<VxeGridPropTypes.Column[]>([
-  { type: 'checkbox', width: 50 },
+const commonCols = () => [
+  { field: 'desc', title: '描述' },
   { field: 'name', title: '表名' },
   { field: 'mainField', title: '主字段', formatter: ({ row }) => row.mainField.join(',') },
+]
+
+const columns1 = ref<VxeGridPropTypes.Column[]>([
+  { type: 'radio', width: 50 },
+  ...commonCols(),
   { title: "操作", slots: { default: 'action' }, width: 78, align: 'center' }
 ]);
-const data1 = ref([{ name: '订单表', mainField: ['_id'] }]);
-const data2 = ref([{ name: '产品表', mainField: ['_id'] }, { name: '客户表', mainField: ['_id'] }]);
+const columns2 = ref<VxeGridPropTypes.Column[]>([
+  { type: 'checkbox', width: 50 },
+  ...commonCols(),
+  { title: "操作", slots: { default: 'action' }, width: 78, align: 'center' }
+]);
+const data1 = ref([{ desc: '订单表', name: 'order', mainField: ['_id'] }]);
+const data2 = ref([{ desc: '产品表', name: 'product', mainField: ['_id'] }, { desc: '客户表', name: 'customer', mainField: ['_id'] }]);
 const showModal = ref(false);
 const loadingModal = ref(false);
 const currentRow = ref();
@@ -48,6 +59,7 @@ const onSave = async () => {
   await new Promise<void>((resolve) => setTimeout(resolve, 1000))
   loading.value = false;
 }
+const sql = `SELECT sales_records.*, customers.name AS customer_name, customers.email AS customer_email, customers.id AS customer_id, products.product_name AS product_name FROM sales_records LEFT JOIN customers ON sales_records.customer_id = customers.id LEFT JOIN products ON sales_records.product_id = products.id`
 </script>
 <template>
   <div style="display: flex;gap:5px;padding: 10px;flex-wrap: wrap;">
@@ -60,7 +72,7 @@ const onSave = async () => {
     <div style="flex:0.5;border: 1px solid #ccc;padding: 10px;">
       <div>主表</div>
       <div style="display: block;background-color: #ccc;height: 1px;margin: 10px 0;"></div>
-      <vxe-grid :columns="columns" :data="data1" :checkbox-config="{ showHeader: false }">
+      <vxe-grid :columns="columns1" :data="data1" :checkbox-config="{ showHeader: false }">
         <template #action="{ row }">
           <vxe-button mode="text" status="primary" @click="onShowModal(row)">
             选择
@@ -71,13 +83,21 @@ const onSave = async () => {
     <div style="flex:1.5;border: 1px solid #ccc;padding: 10px;">
       <div>副表</div>
       <div style="display: block;background-color: #ccc;height: 1px;margin: 10px 0;"></div>
-      <vxe-grid :columns="columns" :data="data2">
+      <vxe-grid :columns="columns2" :data="data2">
         <template #action="{ row }">
           <vxe-button mode="text" status="primary" @click="onShowModal(row)">
             选择
           </vxe-button>
         </template>
       </vxe-grid>
+    </div>
+    <div style="border: 1px solid #ccc;width: 100%;padding: 10px;">
+      <div style="margin-bottom: 5px;">
+        SQL描述：
+      </div>
+      <div style="white-space: pre-wrap;border: 1px solid #ccc;padding: 10px;">
+        {{ format(sql) }}
+      </div>
     </div>
 
     <vxe-modal v-model="showModal" title="选择字段" show-footer resize show-zoom>
