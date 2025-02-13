@@ -19,6 +19,40 @@ const db = mysql.createConnection({
   database: 'demo'
 });
 
+// 将下划线命名转换为驼峰命名
+function underscoreToCamel(str) {
+  return str.replace(/_([a-z])/g, (match, group) => group.toUpperCase());
+}
+
+// 使用中间件将数据转换为驼峰命名
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    const originalSend = res.send;
+    res.send = (data) => {
+      let json = JSON.parse(data);
+      if (Array.isArray(json)) {
+        json = json.map(item => {
+          if (typeof item === 'object') {
+            return Object.keys(item).reduce((acc, key) => {
+
+              acc[underscoreToCamel(key)] = item[key];
+              return acc;
+            }, {});
+          }
+          return item;
+        });
+      } else if (typeof json === 'object') {
+        json = Object.keys(json).reduce((acc, key) => {
+          acc[underscoreToCamel(key)] = json[key];
+          return acc;
+        }, {});
+      }
+      originalSend.call(res, JSON.stringify(json));
+    };
+  }
+  next();
+});
+
 // 连接数据库
 db.connect((err) => {
   if (err) {
@@ -26,6 +60,28 @@ db.connect((err) => {
     return;
   }
   console.log('数据库连接成功');
+});
+// 输出SQL结构的API
+app.get('/api/sql-structure', async (req, res) => {
+  try {
+    const tables = ['products', 'customers', 'sales_records'];
+    const sqls = tables.map(table => `DESCRIBE ${table}`);
+    const results = {};
+
+    for (let i = 0; i < sqls.length; i++) {
+      const data = await new Promise((resolve, reject) => {
+        db.query(sqls[i], (err, data) => {
+          if (err) reject(err);
+          resolve(data);
+        });
+      });
+      results[tables[i]] = data;
+    }
+
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // API路由
@@ -167,9 +223,9 @@ app.delete('/api/customers/:id', (req, res) => {
   });
 });
 
-// 获取所有销售记录
+// 获取所有销售记录，包括关联的客户信息、ID和产品信息
 app.get('/api/sales', (req, res) => {
-  const sql = 'SELECT * FROM sales_records';
+  const sql = `SELECT sales_records.*, customers.name AS customer_name, customers.email AS customer_email, customers.id AS customer_id, products.product_name AS product_name FROM sales_records LEFT JOIN customers ON sales_records.customer_id = customers.id LEFT JOIN products ON sales_records.product_id = products.id`;
   db.query(sql, (err, results) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -310,23 +366,23 @@ app.get('/api/generate-sales', async (req, res) => {
     for (let i = 0; i < COUNT; i++) {
       // 更真实的数量分布 - 大多数订单数量较小
       const quantity = Math.floor(Math.exp(Math.random() * 2)) + 1;
-      
+
       // 更真实的价格分布 - 基于正态分布
       const basePrice = 100 + (Math.random() + Math.random() + Math.random()) * 300;
       const unitPrice = +basePrice.toFixed(2);
-      
+
       // 更真实的折扣分布 - 集中在特定档位
       const discountLevels = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3];
       const discount = discountLevels[Math.floor(Math.random() * discountLevels.length)];
-      
+
       const actualPrice = +(unitPrice * (1 - discount)).toFixed(2);
       const totalAmount = +(quantity * actualPrice).toFixed(2);
-      
+
       // 更真实的成本价格 - 基于行业平均毛利率
       const costPrice = +(unitPrice * 0.6).toFixed(2);
       const profit = +(actualPrice - costPrice).toFixed(2);
       const totalProfit = +(profit * quantity).toFixed(2);
-      
+
       // 更真实的收付款情况 - 大部分能全额收到
       const paymentAmount = Math.random() > 0.1 ? totalAmount : +(totalAmount * 0.9).toFixed(2);
       const receivedAmount = Math.random() > 0.05 ? paymentAmount : +(paymentAmount * 0.95).toFixed(2);
@@ -335,7 +391,7 @@ app.get('/api/generate-sales', async (req, res) => {
       const now = new Date();
       const threeYearsAgo = new Date(now.getFullYear() - 3, 0, 1);
       const createDate = new Date(threeYearsAgo.getTime() + Math.random() * (now.getTime() - threeYearsAgo.getTime()));
-      
+
       // 更真实的业务流程时间间隔
       const inquiryTime = new Date(createDate.getTime() - Math.floor(Math.random() * 3) * 24 * 60 * 60 * 1000);
       const quotationTime = new Date(inquiryTime.getTime() + Math.floor(Math.random() * 2 + 1) * 24 * 60 * 60 * 1000);
@@ -418,17 +474,17 @@ app.get('/api/generate-customers', async (req, res) => {
     const domains = ['qq.com', '163.com', 'gmail.com', '126.com', 'hotmail.com'];
     const firstNames = ['张', '王', '李', '赵', '刘', '陈', '杨', '黄', '周', '吴', '徐', '孙', '马', '朱', '胡'];
     const secondNames = ['伟', '芳', '娜', '秀英', '敏', '静', '丽', '强', '磊', '军', '洋', '勇', '艳', '杰', '涛', '明', '超'];
-    
+
     for (let i = 0; i < COUNT; i++) {
       const registrationDate = new Date(Date.now() - Math.random() * 730 * 24 * 60 * 60 * 1000); // 最近两年内
       const lastPurchaseDate = new Date(registrationDate.getTime() + Math.random() * (Date.now() - registrationDate.getTime()));
-      
+
       const companyName = `${companyPrefixes[Math.floor(Math.random() * companyPrefixes.length)]}${companySuffixes[Math.floor(Math.random() * companySuffixes.length)]}有限公司`;
       const domain = domains[Math.floor(Math.random() * domains.length)];
       const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
       const secondName = secondNames[Math.floor(Math.random() * secondNames.length)];
       const fullName = firstName + secondName;
-      
+
       const data = {
         name: fullName,
         company: companyName,
@@ -470,54 +526,32 @@ app.get('/api/generate-products', async (req, res) => {
     const mockData = [];
     const sql = 'INSERT INTO products SET ?';
 
-    const products = [
-      // 办公椅系列
-      { name: 'Herman Miller Aeron人体工学椅', type: '办公椅', baseCost: 3000 },
-      { name: 'Steelcase Gesture可调节办公椅', type: '办公椅', baseCost: 2500 },
-      { name: 'HAG Capisco马鞍工学椅', type: '办公椅', baseCost: 2000 },
-      { name: '西昊M18人体工学电脑椅', type: '办公椅', baseCost: 500 },
-      { name: '网易严选人体工学转椅', type: '办公椅', baseCost: 800 },
-      
-      // 会议桌系列  
-      { name: '圣奥北欧实木会议桌', type: '会议桌', baseCost: 4000 },
-      { name: '优渡现代简约会议桌', type: '会议桌', baseCost: 2500 },
-      { name: '欧丽家具钢架会议桌', type: '会议桌', baseCost: 1800 },
-      { name: '联邦家私洽谈桌', type: '会议桌', baseCost: 1200 },
-      { name: '全实木会议桌大型会议室桌', type: '会议桌', baseCost: 3500 },
-
-      // 文件柜系列
-      { name: '得力钢制文件柜资料柜', type: '文件柜', baseCost: 600 },
-      { name: '金柜指纹密码保密柜', type: '文件柜', baseCost: 1500 },
-      { name: '洛克菲勒移动文件柜', type: '文件柜', baseCost: 800 },
-      { name: '欧奥森办公室储物柜', type: '文件柜', baseCost: 700 },
-      { name: '震旦办公文件矮柜', type: '文件柜', baseCost: 900 },
-
-      // 沙发系列
-      { name: 'MUJI无印良品办公沙发', type: '沙发', baseCost: 2500 },
-      { name: 'HAY Mags模块化沙发', type: '沙发', baseCost: 3500 },
-      { name: '联邦家私现代简约沙发', type: '沙发', baseCost: 1800 },
-      { name: '优渡北欧风格休闲沙发', type: '沙发', baseCost: 2000 },
-      { name: '慕尼黑接待室沙发组合', type: '沙发', baseCost: 4000 },
-
-      // 工位系列
-      { name: '震旦ANT-P2屏风工位', type: '工位', baseCost: 1500 },
-      { name: '欧丽四人位办公桌工位', type: '工位', baseCost: 1200 },
-      { name: '优渡现代简约职员工位', type: '工位', baseCost: 1000 },
-      { name: '圣奥钢架组合工位', type: '工位', baseCost: 1300 },
-      { name: '联邦家私屏风卡座工位', type: '工位', baseCost: 1400 }
-    ];
+    const productTypes = ['办公椅', '会议桌', '文件柜', '沙发', '工位', '书柜', '茶几', '前台', '屏风'];
+    const brandPrefixes = ['优质', '高端', '豪华', '经典', '现代', '简约', '北欧', '轻奢', '实木'];
+    const brandSuffixes = ['家具', '办公', '家私', '工艺', '制造', '创意'];
+    const productFeatures = ['人体工学', '可调节', '多功能', '智能', '环保', '时尚', '组合式', '模块化'];
+    const materials = ['实木', '钢制', '玻璃', '布艺', '皮革', '金属', '复合材料'];
 
     for (let i = 0; i < COUNT; i++) {
-      const product = products[Math.floor(Math.random() * products.length)];
-      const costPrice = +(product.baseCost * (0.9 + Math.random() * 0.2)).toFixed(2);
-      const markup = 1.3 + Math.random() * 0.4; // 30%-70%的加价率
+      // 随机生成产品名称组合
+      const type = productTypes[Math.floor(Math.random() * productTypes.length)];
+      const brand = `${brandPrefixes[Math.floor(Math.random() * brandPrefixes.length)]}${brandSuffixes[Math.floor(Math.random() * brandSuffixes.length)]}`;
+      const feature = productFeatures[Math.floor(Math.random() * productFeatures.length)];
+      const material = materials[Math.floor(Math.random() * materials.length)];
       
+      // 基础成本在500-5000之间随机
+      const baseCost = +(500 + Math.random() * 4500).toFixed(2);
+      // 成本价在基础成本的0.8-1.2倍之间浮动
+      const costPrice = +(baseCost * (0.8 + Math.random() * 0.4)).toFixed(2);
+      // 加价率在1.2-2.0之间随机
+      const markup = 1.2 + Math.random() * 0.8;
+
       const data = {
-        name: product.name,
+        product_name: `${brand}${material}${feature}${type}`,
         product_code: `P${String(i + 1).padStart(4, '0')}`,
         unit_price: +(costPrice * markup).toFixed(2),
         cost_price: costPrice,
-        combination: ['单品', '单品', '单品', '组合', '套装'][Math.floor(Math.random() * 5)]
+        combination: Math.random() > 0.7 ? (Math.random() > 0.5 ? '组合' : '套装') : '单品'
       };
 
       mockData.push(new Promise((resolve, reject) => {
