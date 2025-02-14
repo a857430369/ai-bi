@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { VxeGridPropTypes } from "vxe-pc-ui";
 import { format } from 'sql-formatter';
 
@@ -19,8 +19,8 @@ const columns2 = ref<VxeGridPropTypes.Column[]>([
   ...commonCols(),
   { title: "操作", slots: { default: 'action' }, width: 78, align: 'center' }
 ]);
-const data1 = ref([{ desc: '订单表', name: 'order', mainField: ['_id'] }]);
-const data2 = ref([{ desc: '产品表', name: 'product', mainField: ['_id'] }, { desc: '客户表', name: 'customer', mainField: ['_id'] }]);
+const data1 = ref([{ desc: '订单表', name: 'sales_records', mainField: ['_id'] }]);
+const data2 = ref([{ desc: '产品表', name: 'products', mainField: ['_id'] }, { desc: '客户表', name: 'customers', mainField: ['_id'] }]);
 const showModal = ref(false);
 const loadingModal = ref(false);
 const currentRow = ref();
@@ -59,7 +59,16 @@ const onSave = async () => {
   await new Promise<void>((resolve) => setTimeout(resolve, 1000))
   loading.value = false;
 }
-const sql = `SELECT sales_records.*, customers.name AS customer_name, customers.email AS customer_email, customers.id AS customer_id, products.product_name AS product_name FROM sales_records LEFT JOIN customers ON sales_records.customer_id = customers.id LEFT JOIN products ON sales_records.product_id = products.id`
+const sql = computed(() => {
+  const mainTable = data1.value[0]
+  const joinTables = data2.value
+  return `SELECT ${mainTable.name}.*, ${joinTables.map(t =>
+    `${t.name}.*`).join(', ')}\n` +
+    `FROM ${mainTable.name}\n` +
+    joinTables.map(t =>
+      `LEFT JOIN ${t.name} ON ${mainTable.name}.${t.name}_id = ${t.name}._id`
+    ).join('\n')
+})
 </script>
 <template>
   <div style="display: flex;gap:5px;padding: 10px;flex-wrap: wrap;">
@@ -93,7 +102,7 @@ const sql = `SELECT sales_records.*, customers.name AS customer_name, customers.
     </div>
     <div style="border: 1px solid #ccc;width: 100%;padding: 10px;">
       <div style="margin-bottom: 5px;">
-        SQL描述：
+        生成的SQL:
       </div>
       <div style="white-space: pre-wrap;border: 1px solid #ccc;padding: 10px;">
         {{ format(sql) }}
