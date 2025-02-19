@@ -69,6 +69,8 @@ const sql = computed(() => {
       `LEFT JOIN ${t.name} ON ${mainTable.name}.${t.name}_id = ${t.name}._id`
     ).join('\n')
 })
+
+const step = ref(0);
 </script>
 <template>
   <div style="display: flex;gap:5px;padding: 10px;flex-wrap: wrap;">
@@ -76,44 +78,53 @@ const sql = computed(() => {
       <vxe-button status="primary" @click="onSave" :loading="loading">
         保存
       </vxe-button>
+      <vxe-button @click="step--">上一步</vxe-button>
+      <vxe-button @click="step++">下一步</vxe-button>
     </div>
 
-    <div style="flex:0.5;border: 1px solid #ccc;padding: 10px;">
-      <div>主表</div>
-      <div style="display: block;background-color: #ccc;height: 1px;margin: 10px 0;"></div>
-      <vxe-grid :columns="columns1" :data="data1" :checkbox-config="{ showHeader: false }">
-        <template #action="{ row }">
-          <vxe-button mode="text" status="primary" @click="onShowModal(row)">
-            选择
-          </vxe-button>
-        </template>
-      </vxe-grid>
-    </div>
-    <div style="flex:1.5;border: 1px solid #ccc;padding: 10px;">
-      <div>副表</div>
-      <div style="display: block;background-color: #ccc;height: 1px;margin: 10px 0;"></div>
-      <vxe-grid :columns="columns2" :data="data2">
-        <template #action="{ row }">
-          <vxe-button mode="text" status="primary" @click="onShowModal(row)">
-            选择
-          </vxe-button>
-        </template>
-      </vxe-grid>
-    </div>
-    <div style="border: 1px solid #ccc;width: 100%;padding: 10px;">
-      <div style="margin-bottom: 5px;">
-        生成的SQL:
+    <template v-if="step === 0">
+      <div style="flex:0.5;border: 1px solid #ccc;padding: 10px;">
+        <div>主表</div>
+        <div style="display: block;background-color: #ccc;height: 1px;margin: 10px 0;"></div>
+        <vxe-grid :columns="columns1" :data="data1" :checkbox-config="{ showHeader: false }">
+          <template #action="{ row }">
+            <vxe-button mode="text" status="primary" @click="onShowModal(row)">
+              选择
+            </vxe-button>
+          </template>
+        </vxe-grid>
       </div>
-      <div style="white-space: pre-wrap;border: 1px solid #ccc;padding: 10px;">
-        {{ format(sql) }}
+      <div style="flex:1.5;border: 1px solid #ccc;padding: 10px;">
+        <div>副表</div>
+        <div style="display: block;background-color: #ccc;height: 1px;margin: 10px 0;"></div>
+        <vxe-grid :columns="columns2" :data="data2">
+          <template #action="{ row }">
+            <vxe-button mode="text" status="primary" @click="onShowModal(row)">
+              选择
+            </vxe-button>
+          </template>
+        </vxe-grid>
       </div>
-    </div>
+      <div style="border: 1px solid #ccc;width: 100%;padding: 10px;">
+        <div style="margin-bottom: 5px;">
+          生成的SQL:
+        </div>
+        <div style="white-space: pre-wrap;border: 1px solid #ccc;padding: 10px;">
+          {{ format(sql) }}
+        </div>
+      </div>
 
-    <vxe-modal v-model="showModal" title="选择字段" show-footer resize show-zoom>
-      <vxe-grid ref="xTable" :columns="fieldColumns" :data="fieldData" :loading="loadingModal"></vxe-grid>
-      <template #footer>
-        <vxe-button status="primary" @click="onConfirm">确定</vxe-button>
-      </template>
-    </vxe-modal>
+      <vxe-modal v-model="showModal" title="选择字段" show-footer resize show-zoom>
+        <vxe-grid ref="xTable" :columns="fieldColumns" :data="fieldData" :loading="loadingModal"></vxe-grid>
+        <template #footer>
+          <vxe-button status="primary" @click="onConfirm">确定</vxe-button>
+        </template>
+      </vxe-modal>
+    </template>
+    <template v-else-if="step == 1">
+      <div>
+        测试生成SQL
+      </div>
+    </template>
   </div>
 </template>

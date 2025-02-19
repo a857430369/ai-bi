@@ -425,8 +425,7 @@ const handlerSearch = () => {
 
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
-    let arr = await fetch("http://localhost:3000/api/sales").then(res => res.json());
-    console.log(arr)
+    let arr = await mockData();
     arr = arr.filter(item => {
       if (!filterField.value.filter(i => i.value)?.length) {
         return true
