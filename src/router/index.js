@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import Layout from '@/Layout/index.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -7,7 +6,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'Home',
-      component: () => Layout
+      component: () => import("@/views/Main/index.vue")
     },
     {
       path: '/main',

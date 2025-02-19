@@ -1,6 +1,5 @@
-<script lang="ts" setup>
+<script setup>
 import { ref, computed } from "vue";
-import { VxeGridPropTypes } from "vxe-pc-ui";
 import { format } from 'sql-formatter';
 
 const commonCols = () => [
@@ -9,12 +8,12 @@ const commonCols = () => [
   { field: 'mainField', title: '主字段', formatter: ({ row }) => row.mainField.join(',') },
 ]
 
-const columns1 = ref<VxeGridPropTypes.Column[]>([
+const columns1 = ref([
   { type: 'radio', width: 50 },
   ...commonCols(),
   { title: "操作", slots: { default: 'action' }, width: 78, align: 'center' }
 ]);
-const columns2 = ref<VxeGridPropTypes.Column[]>([
+const columns2 = ref([
   { type: 'checkbox', width: 50 },
   ...commonCols(),
   { title: "操作", slots: { default: 'action' }, width: 78, align: 'center' }
@@ -28,12 +27,12 @@ const onShowModal = async (row) => {
   showModal.value = true
   loadingModal.value = true
   currentRow.value = row;
-  await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   xTable.value.clearCheckboxRow();
   xTable.value.setCheckboxRow(fieldData.value.filter(i => row.mainField.includes(i.name)), true);
   loadingModal.value = false
 }
-const fieldColumns = ref<VxeGridPropTypes.Column[]>([
+const fieldColumns = ref([
   { type: 'checkbox', width: 50 },
   { field: 'name', title: '字段名' },
   { field: 'type', title: '字段类型' },
@@ -56,7 +55,7 @@ const onConfirm = () => {
 const loading = ref(false);
 const onSave = async () => {
   loading.value = true
-  await new Promise<void>((resolve) => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000))
   loading.value = false;
 }
 const sql = computed(() => {
