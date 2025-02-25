@@ -54,8 +54,8 @@ const data = ref([]);
 const cloneData = ref(cloneDeep(data.value));
 const defaultColumns = () => [
   { title: '#', type: 'seq', width: 80 },
-  { field: '_id', title: 'ID', width: 180 },
-  { field: 'jobNo', title: '产品名称', width: 120 },
+  { field: 'id', title: 'ID', width: 180 },
+  { field: 'productName', title: '产品名称', width: 120 },
   { field: 'createTime', title: '创建时间', width: 150 },
   { field: 'productCode', title: '产品编码', width: 120 },
   { field: 'num', title: '总数', width: 120 },
@@ -84,11 +84,11 @@ const defaultColumns = () => [
   { field: 'receivedAmount', title: '收款金额', width: 100 },
   { field: 'costPrice', title: '成本价格', width: 100 },
   { field: 'profit', title: '单件利润', width: 100 },
-  { field: 'arAmt', title: '总利润', width: 100 },
+  { field: 'totalProfit', title: '总利润', width: 100 },
   { field: 'profitMargin', title: '利润率', width: 100, formatter: ({ cellValue }) => `${currency(cellValue, { precision: 2 }).multiply(100).value}%` },
   // 客户信息列
   { field: 'customerId', title: '客户ID', width: 80 },
-  { field: 'feeiteName', title: '客户姓名', width: 100 },
+  { field: 'customerName', title: '客户姓名', width: 100 },
   { field: 'customerCompany', title: '公司名称', width: 160 },
   { field: 'customerEmail', title: '邮箱', width: 160 },
   { field: 'customerPhone', title: '电话', width: 120 },
@@ -381,7 +381,7 @@ const handlerDate = (type) => {
       width: 220,
       treeNode: true,
       formatter: ({ cellValue }) => {
-        return cellValue?.split('/').pop()
+        return cellValue?.split && cellValue?.split('/').pop()
       }
     })
   }
@@ -544,62 +544,95 @@ const onAi = async () => {
   const sql = await fetch("http://localhost:3000/api/sql-structure").then(res => res.json())
 
   const desc = `
-  ${JSON.stringify(sql)}
-  （这些作为数据库的所有数据结构，请输出可执行关联关系的SQL语句）
-  SQL表名是下划线分隔，帮我格式化下！
-  我的作用是通过前端计算我的列表数据，不用在SQL层面做这一层数据处理，只要列表数据！
-  接下来就是客户所描述的诉求:我想要看产品的销售情况
+  作为SQL专家，请根据以下需求生成规范化的SQL语句和字段映射：
 
-  该数据为页面的列配置，所有信息都根据这里分析,以下就是列设置的数据源
-  ${JSON.stringify(defaultCols.value)}
+【数据库结构输入】
+${JSON.stringify(sql)}
 
-  fieldModel,该信息是我的组件内设定的变量,作用是把数据变成变成二维或者多维度的数据呈现
-  field2,该信息也是我的组件内设定的变量,作用是把数据统计起来的
-  filterField 该信息为查询条件，作用是筛选数据
+【任务要求】
+1. SQL规范：
+   - 表名必须使用下划线命名法（snake_case）
+   - 保持字段平铺，不做聚合计算
+   - 确保关联关系正确性
+   - 结果字段需完整包含所有需要的列
 
-  [生成字段] =  请返回一个JSON字符串，格式为：{"fieldModel":["字段名"],"field2":["统计字段名"],"filterField":[{"field":"字段名","value":"值(支持字符串数组/逗号隔开)"}]}。
-  字段名必须从列配置中选择，fieldModel用于数据分组展示,field2用于数据统计分析,filterField用于数据过滤。
-  请直接返回JSON，不要有任何其他内容。
-  json格式:{
-    sql: [sql语句],
-    table: [生成字段结果]
+2. 字段选择规则：
+   * 必须严格从列配置中选择（当前列配置：${JSON.stringify(defaultCols.value)}）
+   * 字段命名转换规则：
+     - 表字段：保持原始命名
+     - 输出字段：转为驼峰命名（首字母小写）
+
+3. 数据处理要求：
+   - fieldModel: 用于前端树形结构的分组字段（如 ["customerName","productName"]）
+   - field2: 用于统计分析的数值字段（如 ["salesVolume"]）
+   - filterField: 过滤条件数组，值支持数组格式（示例：[{"field":"status","value":[1,2]}])
+
+4. 输出格式要求：
+{
+  "sql": ["规范化的SQL语句(可执行)"],
+  "table": {
+    "fieldModel": ["分组字段"],
+    "field2": ["统计字段"],
+    "filterField": [{"field":"过滤字段","value":"值"}]
   }
+}
 
-  接下来就是客户所描述的诉求:${message}
+【用户需求描述】
+${message}
+
+请直接返回规范的JSON，无需解释说明。确保：
+1. 所有字段从列配置中选取
+2. 表名使用下划线格式
+3. 输出字段为驼峰格式
+4. 过滤值支持数组格式
+5. SQL保持最简关联关系
   `
   // const desc = "你是谁？"
 
-  const res = await fetch("http://192.168.3.102:11434/api/generate", {
+  const res = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
     method: "POST",
     headers: {
-      Authorization: "Bearer 558c2dc9e5f247d9b27e3afac93be4e6.Le0QtAO1m4lZu5LF",
+      Authorization: "Bearer sk-wywqsvbfxyrjtcqwczxecltxbtohcxktqwiiqdxbbmxlvnmq",
       ["Content-Type"]: "application/json"
     },
     body: JSON.stringify({
-      "model": "deepseek-r1:14b",
-      "prompt": desc,
+      "model": "deepseek-ai/DeepSeek-V3",
+      // "prompt": desc,
+      "messages": [
+        {
+          "role": "user",
+          "content": desc
+        }
+      ],
       "stream": false,
-      "format": {
-        "type": "object",
-        "properties": {
-          "sql": {
-            "type": "string"
-          },
-          "table": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "sql",
-          "table"
-        ]
-      }
+      // "format": {
+      //   "type": "object",
+      //   "properties": {
+      //     "sql": {
+      //       "type": "string"
+      //     },
+      //     "table": {
+      //       "type": "string"
+      //     }
+      //   },
+      //   "required": [
+      //     "sql",
+      //     "table"
+      //   ]
+      // }
     })
   }).then(body => body.json())
   const { content } = res.choices[0].message
   try {
     const jsonContent = content.replace(/```json|```/g, '');
-    const { fieldModel: fieldModelData, field2: field2Data, filterField: filterFieldData, sqlResult } = JSON.parse(jsonContent)
+    const {
+      sql,
+      table: {
+        fieldModel: fieldModelData, field2: field2Data, filterField: filterFieldData, sqlResult
+      }
+    } = JSON.parse(jsonContent)
+
+    console.log(sql)
     fieldModel.value = fieldModelData
     field2.value = field2Data
     filterField.value = filterFieldData
