@@ -55,7 +55,7 @@ const cloneData = ref(cloneDeep(data.value));
 const defaultColumns = () => [
   { title: '#', type: 'seq', width: 80 },
   { field: '_id', title: 'ID', width: 180 },
-  { field: 'productName', title: '产品名称', width: 120 },
+  { field: 'jobNo', title: '产品名称', width: 120 },
   { field: 'createTime', title: '创建时间', width: 150 },
   { field: 'productCode', title: '产品编码', width: 120 },
   { field: 'num', title: '总数', width: 120 },
@@ -84,11 +84,11 @@ const defaultColumns = () => [
   { field: 'receivedAmount', title: '收款金额', width: 100 },
   { field: 'costPrice', title: '成本价格', width: 100 },
   { field: 'profit', title: '单件利润', width: 100 },
-  { field: 'totalProfit', title: '总利润', width: 100 },
+  { field: 'arAmt', title: '总利润', width: 100 },
   { field: 'profitMargin', title: '利润率', width: 100, formatter: ({ cellValue }) => `${currency(cellValue, { precision: 2 }).multiply(100).value}%` },
   // 客户信息列
   { field: 'customerId', title: '客户ID', width: 80 },
-  { field: 'customerName', title: '客户姓名', width: 100 },
+  { field: 'feeiteName', title: '客户姓名', width: 100 },
   { field: 'customerCompany', title: '公司名称', width: 160 },
   { field: 'customerEmail', title: '邮箱', width: 160 },
   { field: 'customerPhone', title: '电话', width: 120 },
@@ -425,7 +425,7 @@ const handlerSearch = () => {
 
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
-    let arr = await mockData();
+    let arr = await fetch("http://localhost:3000/api/sales").then(res => res.json());
     arr = arr.filter(item => {
       if (!filterField.value.filter(i => i.value)?.length) {
         return true
@@ -543,34 +543,57 @@ const onAi = async () => {
   let message = prompt("请输入你的述求")
   const sql = await fetch("http://localhost:3000/api/sql-structure").then(res => res.json())
 
-  const desc = `该数据为页面的列配置，所有信息都根据这里分析,以下就是列设置的数据源
-${JSON.stringify(defaultCols.value)}
+  const desc = `
+  ${JSON.stringify(sql)}
+  （这些作为数据库的所有数据结构，请输出可执行关联关系的SQL语句）
+  SQL表名是下划线分隔，帮我格式化下！
+  我的作用是通过前端计算我的列表数据，不用在SQL层面做这一层数据处理，只要列表数据！
+  接下来就是客户所描述的诉求:我想要看产品的销售情况
 
-fieldModel,该信息是我的组件内设定的变量,作用是把数据变成变成二维或者多维度的数据呈现
-field2,该信息也是我的组件内设定的变量,作用是把数据统计起来的
-filterField 该信息为查询条件，作用是筛选数据
+  该数据为页面的列配置，所有信息都根据这里分析,以下就是列设置的数据源
+  ${JSON.stringify(defaultCols.value)}
 
-请返回一个JSON字符串，格式为：{"fieldModel":["字段名"],"field2":["统计字段名"],"filterField":[{"field":"字段名","value":"值(支持字符串数组/逗号隔开)"}]}。
-字段名必须从列配置中选择，fieldModel用于数据分组展示,field2用于数据统计分析,filterField用于数据过滤。
-请直接返回JSON，不要有任何其他内容。
+  fieldModel,该信息是我的组件内设定的变量,作用是把数据变成变成二维或者多维度的数据呈现
+  field2,该信息也是我的组件内设定的变量,作用是把数据统计起来的
+  filterField 该信息为查询条件，作用是筛选数据
 
-接下来就是客户所描述的诉求:${message}
-`
+  [生成字段] =  请返回一个JSON字符串，格式为：{"fieldModel":["字段名"],"field2":["统计字段名"],"filterField":[{"field":"字段名","value":"值(支持字符串数组/逗号隔开)"}]}。
+  字段名必须从列配置中选择，fieldModel用于数据分组展示,field2用于数据统计分析,filterField用于数据过滤。
+  请直接返回JSON，不要有任何其他内容。
+  json格式:{
+    sql: [sql语句],
+    table: [生成字段结果]
+  }
 
-  const res = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+  接下来就是客户所描述的诉求:${message}
+  `
+  // const desc = "你是谁？"
+
+  const res = await fetch("http://192.168.3.102:11434/api/generate", {
     method: "POST",
     headers: {
       Authorization: "Bearer 558c2dc9e5f247d9b27e3afac93be4e6.Le0QtAO1m4lZu5LF",
       ["Content-Type"]: "application/json"
     },
     body: JSON.stringify({
-      "model": "glm-4-plus",
-      "messages": [
-        {
-          "role": "user",
-          "content": desc
-        }
-      ]
+      "model": "deepseek-r1:14b",
+      "prompt": desc,
+      "stream": false,
+      "format": {
+        "type": "object",
+        "properties": {
+          "sql": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sql",
+          "table"
+        ]
+      }
     })
   }).then(body => body.json())
   const { content } = res.choices[0].message

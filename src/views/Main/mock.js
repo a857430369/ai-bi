@@ -1,3 +1,4 @@
+import data from "./data1.json"
 const GOL_COUNT = 10000;
 
 const generateRandomData = async (COUNT) => {
@@ -152,7 +153,7 @@ const generateRandomData = async (COUNT) => {
   const endTime = new Date().getTime(); // End time
   console.log(`Execution time: ${endTime - startTime}ms`); // Execution time
 
-  return mockData;
+  return data;
 };
 
 export const mockData = () => generateRandomData(GOL_COUNT);
