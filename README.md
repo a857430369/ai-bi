@@ -1,4 +1,18 @@
+# 项目初始话
+## 前端
+```bash
+pnpm install
+pnpm run dev
+```
+## 后端
+- 运行 run.sql到数据库
+- npm run server # 启动后端服务
+```bash
+npm run server # 启动后端服务
+```
 
+
+---
 
 根据提供的代码内容，整理技术文档如下：
 
