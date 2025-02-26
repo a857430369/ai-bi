@@ -1,4 +1,4 @@
-# 项目初始话
+# 项目初始化
 ## 前端
 ```bash
 pnpm install
