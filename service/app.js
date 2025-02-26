@@ -225,7 +225,64 @@ app.delete('/api/customers/:id', (req, res) => {
 
 // 获取所有销售记录，包括关联的客户信息、ID和产品信息
 app.get('/api/sales', (req, res) => {
-  const sql = `SELECT sales_records.*, customers.name AS customer_name, customers.email AS customer_email, customers.id AS customer_id, products.product_name AS product_name FROM sales_records LEFT JOIN customers ON sales_records.customer_id = customers.id LEFT JOIN products ON sales_records.product_id = products.id`;
+  let sql = `SELECT
+  s.id as id,
+	p.id AS product_id,
+	p.product_name,
+	p.product_code,
+	p.unit_price,
+	p.cost_price,
+	p.combination,
+	s.amount,
+	s.payment_amount,
+	s.received_amount,
+	s.actual_price,
+	s.profit,
+	s.total_profit,
+	s.quantity,
+	s.discount,
+	s.quotation_delay,
+	s.order_delay,
+	s.payment_delay,
+	s.delivery_delay,
+	s.total_process_days,
+	s.relation_type,
+	s.region,
+	s.channel,
+	s.payment_method,
+	s.STATUS,
+	s.is_coupon_used,
+	s.is_first_purchase,
+	s.return_rate,
+	s.customer_satisfaction,
+	s.profit_margin,
+	s.has_returned,
+	s.has_complaints,
+	s.recommendation_score,
+	c.id AS customer_id,
+	c.NAME AS customer_name,
+	c.company AS customer_company,
+	c.email AS customer_email,
+	c.phone AS customer_phone,
+	c.customer_type,
+	c.customer_level,
+	c.customer_age,
+	c.customer_occupation,
+	c.purchase_count,
+	c.total_spent,
+	c.avg_order_amount,
+	c.last_purchase_date,
+	c.registration_date,
+	c.preferred_payment_method,
+	c.is_vip 
+FROM
+	products p
+	JOIN sales_records s ON p.id = s.product_id
+	JOIN customers c ON c.id = s.customer_id`;
+  if(req.body.sql){
+    sql = req.body.sql;
+  }
+
   db.query(sql, (err, results) => {
     if (err) {
       res.status(500).json({ error: err.message });
