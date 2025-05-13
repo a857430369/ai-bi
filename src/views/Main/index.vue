@@ -12,16 +12,18 @@ import ChartComponent from '@/components/chart/index.vue';
 import { isArray } from 'lodash';
 
 dayjs.extend(utc);
+// TODO AI述求 完成
 // 图表功能 完成
 // TODO 柱状图，折线图，饼图
 // TODO 横向分组无限嵌套
 // 需要做footer统计 完成
+// 需要做footer的 平均计算
 // TODO 未来需要分析字段是否要做合并项目
 // TODO 未来需要分析字段是否要做平均计算
 // TODO 多维度合并表头
 // TODO 可能创建一个新的组件做合并项数据分析
 // 导出功能 完成
-// TODO 导出功能header没有
+// 导出功能header没有
 // TODO 可视化列设置
 
 // TODO 根据创建时间进行时间分析
@@ -414,6 +416,30 @@ const handlerReset = () => {
   filterField.value = [{}]
   handlerSearch();
 }
+function handlerResponseResult(result) {
+  result = result.filter(item => {
+    if (!filterField.value.filter(i => i.value)?.length) {
+      return true
+    }
+    return filterField.value.filter(i => i.value).every(field => {
+      if (isArray(field.value)) {
+        return field.value.includes(item[field.field])
+      } else if (field.value.indexOf(',') > -1) {
+        return field.value.split(',').includes(item[field.field])
+      } else {
+        return item[field.field] === field.value
+      }
+    })
+  })
+  data.value = result;
+  cloneData.value = cloneDeep(data.value);
+  handlerDate(activeDateType.value);
+
+  if (mode.value === 'chart') {
+    renderChartHook();
+  }
+  return result;
+}
 const handlerSearch = () => {
   if (!fieldModel.value.length || !field2.value.length) {
     VxeUI.modal.message({
@@ -426,27 +452,7 @@ const handlerSearch = () => {
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
     let arr = await fetch("http://localhost:3000/api/sales").then(res => res.json());
-    arr = arr.filter(item => {
-      if (!filterField.value.filter(i => i.value)?.length) {
-        return true
-      }
-      return filterField.value.filter(i => i.value).every(field => {
-        if (isArray(field.value)) {
-          return field.value.includes(item[field.field])
-        } else if (field.value.indexOf(',') > -1) {
-          return field.value.split(',').includes(item[field.field])
-        } else {
-          return item[field.field] === field.value
-        }
-      })
-    })
-    data.value = arr;
-    cloneData.value = cloneDeep(data.value);
-    handlerDate(activeDateType.value);
-
-    if (mode.value === 'chart') {
-      renderChartHook();
-    }
+    handlerResponseResult(arr);
   }, INTERVAL)
 }
 onMounted(() => {
@@ -540,106 +546,26 @@ const onExport = () => {
   })
 }
 const onAi = async () => {
+  tableConfig.value.loading = true;
   let message = prompt("请输入你的述求")
-  const sql = await fetch("http://localhost:3000/api/sql-structure").then(res => res.json())
-
-  const desc = `
-  作为SQL专家，请根据以下需求生成规范化的SQL语句和字段映射：
-
-【数据库结构输入】
-${JSON.stringify(sql)}
-
-【任务要求】
-1. SQL规范：
-   - 表名必须使用下划线命名法（snake_case）
-   - 保持字段平铺，不做聚合计算
-   - 确保关联关系正确性
-   - 结果字段需完整包含所有需要的列
-
-2. 字段选择规则：
-   * 必须严格从列配置中选择（当前列配置：${JSON.stringify(defaultCols.value)}）
-   * 字段命名转换规则：
-     - 表字段：保持原始命名
-     - 输出字段：转为驼峰命名（首字母小写）
-
-3. 数据处理要求：
-   - fieldModel: 用于前端树形结构的分组字段（如 ["customerName","productName"]）
-   - field2: 用于统计分析的数值字段（如 ["salesVolume"]）
-   - filterField: 过滤条件数组，值支持数组格式（示例：[{"field":"status","value":[1,2]}])
-
-4. 输出格式要求：
-{
-  "sql": ["规范化的SQL语句(可执行)"],
-  "table": {
-    "fieldModel": ["分组字段"],
-    "field2": ["统计字段"],
-    "filterField": [{"field":"过滤字段","value":"值"}]
-  }
-}
-
-【用户需求描述】
-${message}
-
-请直接返回规范的JSON，无需解释说明。确保：
-1. 所有字段从列配置中选取
-2. 表名使用下划线格式
-3. 输出字段为驼峰格式
-4. 过滤值支持数组格式
-5. SQL保持最简关联关系
-  `
-  // const desc = "你是谁？"
-
-  const res = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
-    method: "POST",
+  const res = await fetch("http://localhost:3000/api/ai-query", {
+    method: 'POST',
     headers: {
-      Authorization: "Bearer sk-wywqsvbfxyrjtcqwczxecltxbtohcxktqwiiqdxbbmxlvnmq",
-      ["Content-Type"]: "application/json"
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      "model": "deepseek-ai/DeepSeek-V3",
-      // "prompt": desc,
-      "messages": [
-        {
-          "role": "user",
-          "content": desc
-        }
-      ],
-      "stream": false,
-      // "format": {
-      //   "type": "object",
-      //   "properties": {
-      //     "sql": {
-      //       "type": "string"
-      //     },
-      //     "table": {
-      //       "type": "string"
-      //     }
-      //   },
-      //   "required": [
-      //     "sql",
-      //     "table"
-      //   ]
-      // }
+      cols: defaultCols.value,
+      message: message
     })
-  }).then(body => body.json())
-  const { content } = res.choices[0].message
-  try {
-    const jsonContent = content.replace(/```json|```/g, '');
-    const {
-      sql,
-      table: {
-        fieldModel: fieldModelData, field2: field2Data, filterField: filterFieldData, sqlResult
-      }
-    } = JSON.parse(jsonContent)
+  }).then(res => res.json())
 
-    console.log(sql)
-    fieldModel.value = fieldModelData
-    field2.value = field2Data
-    filterField.value = filterFieldData
-    handlerSearch();
-  } catch (e) {
-    console.error(e);
-  }
+  console.log(res);
+
+  fieldModel.value = res.table.fieldModel
+  field2.value = res.table.field2
+  // filterField.value = res.table.filterField
+  tableConfig.value.loading = false;
+  handlerResponseResult(res.list);
 }
 
 const filterField = ref([{
@@ -658,13 +584,10 @@ const onDelete = () => {
   <div style="width: 100vw;overflow: auto;">
     <div style="display: flex;justify-content: space-between;">
       <div>
-        <vxe-button v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
+        <vxe-button class="button-dropdown" v-for="btn in buttons" :key="btn.key" @click="onHnadlerDate(btn.key)">
           {{ btn.text }}
           <template #dropdowns>
-            <div style="height: 200px;overflow: auto;display: flex;flex-direction: column;">
-              <vxe-button v-for="col in defaultCols" mode="text" :content="col.title"
-                style="height: 100px;line-height: 100px;"></vxe-button>
-            </div>
+            <vxe-button v-for="col in defaultCols" mode="text" :content="col.title"></vxe-button>
           </template>
         </vxe-button>
         <vxe-button @click="onClickExpand()">展开/收起</vxe-button>
@@ -750,5 +673,18 @@ const onDelete = () => {
   padding: 6px;
   width: 100%;
   height: 100%;
+}
+</style>
+<style lang="scss" scoped>
+.button-dropdown {
+  :deep(.vxe-button--dropdown-panel) {
+    left: 0px;
+  }
+
+  :deep(.vxe-button--dropdown-wrapper) {
+    height: 400px;
+    width: 150px;
+    overflow: auto;
+  }
 }
 </style>
