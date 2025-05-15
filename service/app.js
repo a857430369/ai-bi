@@ -2,6 +2,9 @@ const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
+
 function getAiDesc(sql, defaultCols, message) {
   return `
   作为SQL专家，请根据以下需求生成规范化的SQL语句和字段映射：
@@ -15,6 +18,9 @@ ${JSON.stringify(sql)}
    - 保持字段平铺，不做聚合计算
    - 确保关联关系正确性
    - 结果字段需完整包含所有需要的列
+   - 结果字段必须严格从列配置中选择
+   - 输出字段：转为驼峰命名（首字母小写）
+   - 保持列配置中不删减
 
 2. 字段选择规则：
    * 必须严格从列配置中选择（当前列配置：${JSON.stringify(defaultCols)}）
@@ -23,9 +29,10 @@ ${JSON.stringify(sql)}
      - 输出字段：转为驼峰命名（首字母小写）
 
 3. 数据处理要求：
-   - fieldModel: 用于前端树形结构的分组字段（如 ["customerName","productName"]）
-   - field2: 用于统计分析的数值字段（如 ["salesVolume"]）
+   - fieldModel: 用于前端树形结构的分组字段,请着重判断数据的关系（示例：地区-客户-产品 ["customerName","productName"]）
+   - field2: 用于统计分析的数值字段（示例： ["salesVolume"]）
    - filterField: 过滤条件数组，值支持数组格式（示例：[{"field":"status","value":[1,2]}])
+   - sql 根据客户描述，可适当添加过滤语句
 
 4. 输出格式要求：
 {
@@ -46,11 +53,10 @@ ${message}
 3. 输出字段为驼峰格式
 4. 过滤值支持数组格式
 5. SQL保持最简关联关系
-6. 返回的SQL语句需要执行
-7. 返回的内容需JSON可格式化解析
+7. 返回的SQL语句需要执行
+8. 返回的内容需JSON可格式化解析
   `
 }
-
 const app = express();
 
 // 中间件配置
@@ -143,12 +149,13 @@ app.get('/api/sql-structure', async (req, res) => {
 app.post('/api/ai-query', async (req, res) => {
   try {
     const sql = await getDbStructure()
-    const desc = getAiDesc(sql, req.body.cols, req.body.message)
+    const sqlFile = await fs.readFileSync(path.join(__dirname, './demo.sql'), 'utf-8')
+    const desc = getAiDesc(sqlFile, req.body.defaultCols, req.body.message)
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: "Bearer sk-e4b250d01bb54b749e7ab2394f31fb82",
+        Authorization: "Bearer sk-142bf051a904464c9709d81215d26b74",
         ["Content-Type"]: "application/json"
       },
       body: JSON.stringify({
@@ -176,6 +183,7 @@ app.post('/api/ai-query', async (req, res) => {
       table
     } = JSON.parse(jsonContent)
     const sqlQuery = sqlResult.join("");
+    console.log(sqlQuery)
     db.query(sqlQuery, (err, results) => {
       if (err) {
         res.status(500).json({ error: err.message });
