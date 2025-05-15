@@ -4,6 +4,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+// TODO 如何做好会话记录
 
 function getAiDesc(sql, defaultCols, message) {
   return `
