@@ -12,7 +12,7 @@ import ChartComponent from '@/components/chart/index.vue';
 import { isArray } from 'lodash';
 
 dayjs.extend(utc);
-// TODO AI述求 完成
+// AI述求 完成
 // 图表功能 完成
 // TODO 柱状图，折线图，饼图
 // TODO 横向分组无限嵌套

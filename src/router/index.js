@@ -11,7 +11,7 @@ const router = createRouter({
     {
       path: '/main',
       name: 'Main',
-      component: () => import("@/views/Main/index.vue")
+      component: () => import("@/views/Home/index.vue")
     },
     {
       path: '/config',
