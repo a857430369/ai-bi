@@ -128,3 +128,12 @@ field2.value = ['salesVolume', 'profit'];
 3. 分组层级建议不超过3级
 4. 图表渲染需等待表格数据就绪
 
+---
+## 配置模型文件
+```javascript /service/setting.js
+// /service/setting.js
+module.exports = {
+  AI_API_URL: "https://api.deepseek.com/chat/completions",
+  AI_API_KEY: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", // 模型APIKEY
+}
+```
