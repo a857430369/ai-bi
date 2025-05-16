@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const product = require('./product');
+const ai = require('./ai');
 // TODO 如何做好会话记录
 
 // 获取SQL语句
@@ -131,6 +132,7 @@ let db = mysql.createConnection({
   database: 'demo'
 });
 product(app, db)
+ai(app)
 
 // 将下划线命名转换为驼峰命名
 function underscoreToCamel(str) {
