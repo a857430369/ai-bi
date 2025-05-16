@@ -1,7 +1,8 @@
 <template>
   <div style="padding: 10px">
     <n-steps v-model:current="current" :status="currentStatus">
-      <n-step title="输入SQL语句" description="根据SQL语句生成列配置" />
+      <n-step title="配置数据库" description="链接数据库,获取数据结构" />
+      <n-step title="选择数据表" description="选择所需数据结构生成报表" />
       <n-step title="选择列配置" />
       <n-step title="生成报表" />
       <n-step title="完成" />
@@ -9,11 +10,23 @@
 
     <n-form :show-label="false" :show-feedback="false">
       <div v-if="current === 1">
-        <n-form-item style="margin-bottom: 10px">
-          <n-input v-model:value="sql" :rows="10" type="textarea" placeholder="请输入SQL语句" />
+        <n-form-item style="margin-bottom: 10px;" show-label label="Host">
+          <n-input v-model:value="sql.host" />
+        </n-form-item>
+        <n-form-item style="margin-bottom: 10px;" show-label label="Port">
+          <n-input v-model:value="sql.port" />
+        </n-form-item>
+        <n-form-item style="margin-bottom: 10px;" show-label label="UserName">
+          <n-input v-model:value="sql.userName" />
+        </n-form-item>
+        <n-form-item style="margin-bottom: 10px;" show-label label="Password">
+          <n-input v-model:value="sql.password" type="password" />
+        </n-form-item>
+        <n-form-item style="margin-bottom: 10px;" show-label label="Database">
+          <n-input v-model:value="sql.database" />
         </n-form-item>
       </div>
-      <div v-else-if="current === 2">
+      <div v-else-if="current === 3">
         <n-form-item style="margin-bottom: 10px">
           <vxe-grid :data="configForm.columns" :columns="[
             { field: 'field', title: '字段名', width: 200 },
@@ -23,7 +36,7 @@
           </vxe-grid>
         </n-form-item>
       </div>
-      <div v-else-if="current === 3">
+      <div v-else-if="current === 4">
         <Main :ai-columns="configForm.columns" />
       </div>
       <n-form-item>
@@ -42,7 +55,13 @@ import dayjs from 'dayjs';
 
 const current = ref(1);
 const currentStatus = ref('process');
-const sql = ref('');
+const sql = ref({
+  host: "",
+  port: "",
+  userName: "",
+  password: "",
+  database: ""
+});
 
 function onPrev() {
   current.value--;
@@ -58,6 +77,20 @@ const loading = ref(false);
 async function onNext() {
   switch (current.value) {
     case 1:
+      {
+        loading.value = true;
+        const res = await fetch('http://localhost:3000/api/db', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(sql.value)
+        })
+        console.log(res);
+        loading.value = false;
+        break;
+      }
+    case 2:
       loading.value = true;
       const res = await fetch('http://localhost:3000/api/ai/genColumn', {
         method: 'POST',
@@ -81,6 +114,7 @@ async function onNext() {
         }
       })
       configForm.value.columns = res.columns.map(i => ({ ...i, width: 200 }));
+      break;
   }
 
 
