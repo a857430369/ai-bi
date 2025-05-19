@@ -71,7 +71,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // 数据库连接配置
-let dbConnect;
+let dbConnect={db:null};
 db(app, dbConnect);
 product(app, dbConnect)
 ai(app)

@@ -26,6 +26,25 @@
           <n-input v-model:value="sql.database" />
         </n-form-item>
       </div>
+      <div v-else-if="current === 2" style="margin-top: 10px;">
+        <n-grid :cols="6" :x-gap="20" :y-gap="20">
+          <n-gi :span="6">
+            <n-input placeholder="搜索表名" />
+          </n-gi>
+          <n-gi v-for="item in tableStruct">
+            <n-card content-style="padding: 0px;" header-style="padding: 10px;">
+              <template #header>
+                <n-checkbox v-model:checked="item.checked">{{ item.name }}</n-checkbox>
+              </template>
+              <vxe-grid :data="item.columns" :columns="[
+                { field: 'COLUMN_NAME', title: '字段名' },
+                { field: 'COLUMN_COMMENT', title: '注释' },
+              ]" width="400" border height="600">
+              </vxe-grid>
+            </n-card>
+          </n-gi>
+        </n-grid>
+      </div>
       <div v-else-if="current === 3">
         <n-form-item style="margin-bottom: 10px">
           <vxe-grid :data="configForm.columns" :columns="[
@@ -39,7 +58,7 @@
       <div v-else-if="current === 4">
         <Main :ai-columns="configForm.columns" />
       </div>
-      <n-form-item>
+      <n-form-item style="margin-top: 10px;">
         <n-space>
           <n-button type="primary" @click="onPrev">上一步</n-button>
           <n-button type="primary" @click="onNext" :loading="loading">下一步</n-button>
@@ -56,10 +75,10 @@ import dayjs from 'dayjs';
 const current = ref(1);
 const currentStatus = ref('process');
 const sql = ref({
-  host: "",
-  port: "",
-  userName: "",
-  password: "",
+  host: "localhost",
+  port: "3306",
+  userName: "root",
+  password: "root",
   database: ""
 });
 
@@ -74,31 +93,39 @@ const configForm = ref({
   columns: []
 })
 const loading = ref(false);
+const tableStruct = ref({});
 async function onNext() {
   switch (current.value) {
-    case 1:
-      {
-        loading.value = true;
-        const res = await fetch('http://localhost:3000/api/db', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(sql.value)
-        })
-        console.log(res);
-        loading.value = false;
-        break;
-      }
-    case 2:
+    case 1: {
       loading.value = true;
+      const res = await fetch('http://localhost:3000/api/db', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(sql.value)
+      }).then(res => res.json())
+      loading.value = false;
+      tableStruct.value = Object.keys(res.result).map(i => ({
+        name: i,
+        columns: res.result[i],
+        checked: false
+      }));
+      break;
+    }
+    case 2: {
+      loading.value = true;
+      const sqlStruct = tableStruct.value.filter(i => i.checked).map(i => ({
+        name: i.name,
+        columns: i.columns
+      }));
       const res = await fetch('http://localhost:3000/api/ai/genColumn', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          sql: sql.value
+          sql: sqlStruct
         })
       }).then(res => res.json())
       loading.value = false;
@@ -115,8 +142,8 @@ async function onNext() {
       })
       configForm.value.columns = res.columns.map(i => ({ ...i, width: 200 }));
       break;
+    }
   }
-
 
   current.value++;
   if (current.value > 4) {

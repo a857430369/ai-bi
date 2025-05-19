@@ -1,9 +1,9 @@
-module.exports = function middleware(app, db) {
+module.exports = function middleware(app, dbConnect) {
   // API路由
   // 获取所有产品
   app.get('/api/products', (req, res) => {
     const sql = 'SELECT * FROM products';
-    db.query(sql, (err, results) => {
+    dbConnect.db.query(sql, (err, results) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -16,7 +16,7 @@ module.exports = function middleware(app, db) {
   app.post('/api/products', (req, res) => {
     const { name, product_code, unit_price, cost_price, combination } = req.body;
     const sql = 'INSERT INTO products (name, product_code, unit_price, cost_price, combination) VALUES (?, ?, ?, ?, ?)';
-    db.query(sql, [name, product_code, unit_price, cost_price, combination], (err, result) => {
+    dbConnect.db.query(sql, [name, product_code, unit_price, cost_price, combination], (err, result) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -30,7 +30,7 @@ module.exports = function middleware(app, db) {
     const { id } = req.params;
     const { name, product_code, unit_price, cost_price, combination } = req.body;
     const sql = 'UPDATE products SET name=?, product_code=?, unit_price=?, cost_price=?, combination=? WHERE id=?';
-    db.query(sql, [name, product_code, unit_price, cost_price, combination, id], (err) => {
+    dbConnect.db.query(sql, [name, product_code, unit_price, cost_price, combination, id], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -43,7 +43,7 @@ module.exports = function middleware(app, db) {
   app.delete('/api/products/:id', (req, res) => {
     const { id } = req.params;
     const sql = 'DELETE FROM products WHERE id=?';
-    db.query(sql, [id], (err) => {
+    dbConnect.db.query(sql, [id], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -55,7 +55,7 @@ module.exports = function middleware(app, db) {
   // 获取所有客户
   app.get('/api/customers', (req, res) => {
     const sql = 'SELECT * FROM customers';
-    db.query(sql, (err, results) => {
+    dbConnect.db.query(sql, (err, results) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -80,7 +80,7 @@ module.exports = function middleware(app, db) {
     preferred_payment_method, is_vip
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-    db.query(sql, [
+    dbConnect.db.query(sql, [
       name, company, email, phone, customer_type, customer_level,
       customer_age, customer_occupation, purchase_count, total_spent,
       avg_order_amount, last_purchase_date, registration_date,
@@ -111,7 +111,7 @@ module.exports = function middleware(app, db) {
     preferred_payment_method=?, is_vip=?
     WHERE id=?`;
 
-    db.query(sql, [
+    dbConnect.db.query(sql, [
       name, company, email, phone, customer_type, customer_level,
       customer_age, customer_occupation, purchase_count, total_spent,
       avg_order_amount, last_purchase_date, registration_date,
@@ -129,7 +129,7 @@ module.exports = function middleware(app, db) {
   app.delete('/api/customers/:id', (req, res) => {
     const { id } = req.params;
     const sql = 'DELETE FROM customers WHERE id=?';
-    db.query(sql, [id], (err) => {
+    dbConnect.db.query(sql, [id], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -199,7 +199,7 @@ FROM
       sql = req.body.sql;
     }
 
-    db.query(sql, (err, results) => {
+    dbConnect.db.query(sql, (err, results) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -236,7 +236,7 @@ FROM
     has_complaints, recommendation_score
   ) VALUES (${Array(39).fill('?').join(',')})`;
 
-    db.query(sql, [
+    dbConnect.db.query(sql, [
       product_id, customer_id, amount, payment_amount, received_amount,
       actual_price, profit, total_profit, quantity, discount,
       inquiry_time, quotation_time, create_time, order_time,
@@ -285,7 +285,7 @@ FROM
     has_complaints=?, recommendation_score=?
     WHERE id=?`;
 
-    db.query(sql, [
+    dbConnect.db.query(sql, [
       product_id, customer_id, amount, payment_amount, received_amount,
       actual_price, profit, total_profit, quantity, discount,
       inquiry_time, quotation_time, create_time, order_time,
@@ -309,7 +309,7 @@ FROM
   app.delete('/api/sales/:id', (req, res) => {
     const { id } = req.params;
     const sql = 'DELETE FROM sales_records WHERE id=?';
-    db.query(sql, [id], (err) => {
+    dbConnect.db.query(sql, [id], (err) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
@@ -322,14 +322,14 @@ FROM
     try {
       const COUNT = 1000;
       const products = await new Promise((resolve, reject) => {
-        db.query('SELECT id FROM products', (err, results) => {
+        dbConnect.db.query('SELECT id FROM products', (err, results) => {
           if (err) reject(err);
           resolve(results);
         });
       });
 
       const customers = await new Promise((resolve, reject) => {
-        db.query('SELECT id FROM customers', (err, results) => {
+        dbConnect.db.query('SELECT id FROM customers', (err, results) => {
           if (err) reject(err);
           resolve(results);
         });
@@ -420,7 +420,7 @@ FROM
         };
 
         mockData.push(new Promise((resolve, reject) => {
-          db.query(sql, data, (err) => {
+          dbConnect.db.query(sql, data, (err) => {
             if (err) reject(err);
             resolve();
           });
@@ -477,7 +477,7 @@ FROM
         };
 
         mockData.push(new Promise((resolve, reject) => {
-          db.query(sql, data, (err) => {
+          dbConnect.db.query(sql, data, (err) => {
             if (err) reject(err);
             resolve();
           });
@@ -528,7 +528,7 @@ FROM
         };
 
         mockData.push(new Promise((resolve, reject) => {
-          db.query(sql, data, (err) => {
+          dbConnect.db.query(sql, data, (err) => {
             if (err) reject(err);
             resolve();
           });

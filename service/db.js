@@ -2,14 +2,14 @@ const mysql = require('mysql2');
 
 
 
-module.exports = function install(app, db) {
+module.exports = function install(app, dbConnect) {
   async function getDbStructure() {
     try {
       // 获取所有表名
       const tables = await new Promise((resolve, reject) => {
-        db.query("SHOW TABLES", (err, results) => {
+        dbConnect.db.query("SHOW TABLES", (err, results) => {
           if (err) reject(err);
-          resolve(results.map(row => row[`Tables_in_${db.config.database}`]));
+          resolve(results.map(row => row[`Tables_in_${dbConnect.db.config.database}`]));
         });
       });
 
@@ -18,7 +18,13 @@ module.exports = function install(app, db) {
       // 获取每个表的结构信息
       for (const table of tables) {
         const columns = await new Promise((resolve, reject) => {
-          db.query(`DESCRIBE ${table}`, (err, data) => {
+          dbConnect.db.query(`SELECT
+	* 
+FROM
+	information_schema.COLUMNS 
+WHERE
+	TABLE_NAME = '${table}' 
+	AND TABLE_SCHEMA = '${dbConnect.db.config.database}'`, (err, data) => {
             if (err) reject(err);
             resolve(data);
           });
@@ -35,7 +41,7 @@ module.exports = function install(app, db) {
 
   app.post('/api/db', async (req, res) => {
     const { host, port, userName: user, password, database } = req.body;
-    db = mysql.createConnection({
+    dbConnect.db = mysql.createConnection({
       host,
       port,
       user,
@@ -43,7 +49,7 @@ module.exports = function install(app, db) {
       database
     });
     // 连接数据库
-    db.connect((err) => {
+    dbConnect.db.connect((err) => {
       if (err) {
         console.error('数据库连接失败:', err);
         return;

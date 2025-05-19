@@ -16,14 +16,37 @@ const prompt = `以下是优化后的提示词，严格限定输出为纯JSON格
    - 如果是时间类型，则添加, type: date
 
 示例输入：
-CREATE TABLE orders (
-  user_id INT,
-  product_id INT,
-  amount DECIMAL(10,2),
-  is_paid BOOL
-);
+{
+  name: "customers",
+  columns: [
+    {
+      TABLE_CATALOG: "def",
+      TABLE_SCHEMA: "demo",
+      TABLE_NAME: "customers",
+      COLUMN_NAME: "id",
+      ORDINAL_POSITION: 1,
+      COLUMN_DEFAULT: null,
+      IS_NULLABLE: "NO",
+      DATA_TYPE: "int",
+      CHARACTER_MAXIMUM_LENGTH: null,
+      CHARACTER_OCTET_LENGTH: null,
+      NUMERIC_PRECISION: 10,
+      NUMERIC_SCALE: 0,
+      DATETIME_PRECISION: null,
+      CHARACTER_SET_NAME: null,
+      COLLATION_NAME: null,
+      COLUMN_TYPE: "int(11)",
+      COLUMN_KEY: "PRI",
+      EXTRA: "auto_increment",
+      PRIVILEGES: "select,insert,update,references",
+      COLUMN_COMMENT: "主键",
+      GENERATION_EXPRESSION: "",
+      _X_ROW_KEY: "row_176",
+    }
+  ]
+}
 
-示例输出：
+示例输出：(把所有表的全部字段都列出来，找出他们的关联关系，输出一个columns)
 [
   {"field": "user_name", "title": "用户名称"},
   {"field": "product_name", "title": "商品名称"}, 
@@ -61,7 +84,7 @@ async function getColumnCache(sql) {
         },
         {
           "role": "user",
-          "content": sql.replace(/\s+/g, ' ').trim()
+          "content": JSON.stringify(sql).replace(/\s+/g, ' ').trim()
         }
       ],
       "stream": false
