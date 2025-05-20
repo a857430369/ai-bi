@@ -63,6 +63,9 @@ const prompt = `以下是优化后的提示词，严格限定输出为纯JSON格
 3. 移除模板自述内容
 4. 强化"直接返回JSON"指令
 5. 字段处理规则改用条目式列举
+6. 不需要处理聚合数据，前端会处理
+7. 输出的字段必须有create_time字段
+8. 字段格式为下划线格式
 `
 const cacheMap = new Map();
 async function getColumnCache(sql) {

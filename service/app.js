@@ -23,8 +23,9 @@ ${JSON.stringify(sql)}
    - 确保关联关系正确性
    - 结果字段需完整包含所有需要的列
    - 结果字段必须严格从列配置中选择
-   - 输出字段：转为驼峰命名（首字母小写）
    - 保持列配置中不删减
+   - 输出数据必须有create_time字段
+   - 不需要处理聚合数据，前端会处理
 
 2. 字段选择规则：
    * 必须严格从列配置中选择（当前列配置：${JSON.stringify(defaultCols)}）
@@ -109,20 +110,32 @@ app.use((req, res, next) => {
   }
   next();
 });
-// 获取数据结构
 
-// 输出SQL结构的API
-app.get('/api/sql-structure', async (req, res) => {
+async function getDbStructure(tables) {
   try {
-    res.json(await getDbStructure());
+    const results = {};
+
+    // 获取每个表的结构信息
+    for (const table of tables) {
+      const columns = await new Promise((resolve, reject) => {
+        dbConnect.db.query(`DESC ${table}`, (err, data) => {
+          if (err) reject(err);
+          resolve(data);
+        });
+      });
+
+      results[table] = columns;
+    }
+
+    return results;
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    throw err;
   }
-});
+}
 // 根据AI需求生成SQL语句
 app.post('/api/ai-query', async (req, res) => {
   try {
-    const desc = getAiDesc(req.body.sql, req.body.defaultCols, req.body.message)
+    const desc = getAiDesc(await getDbStructure(req.body.sql), req.body.defaultCols, req.body.message)
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",

@@ -513,7 +513,7 @@ async function onFetchAi(message) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      sql: props.tableStruct.filter(item => item.checked),
+      sql: props.tableStruct.filter(item => item.checked).map(item => item.name),
       cols: defaultCols.value,
       message: message
     })
