@@ -54,7 +54,7 @@ ${message}
 请直接返回规范的JSON，无需解释说明。确保：
 1. 所有字段从列配置中选取
 2. 表名使用下划线格式
-3. 输出字段为驼峰格式
+3. 输出字段为下划线格式
 4. 过滤值支持数组格式
 5. SQL保持最简关联关系
 7. 返回的SQL语句需要执行
@@ -122,9 +122,7 @@ app.get('/api/sql-structure', async (req, res) => {
 // 根据AI需求生成SQL语句
 app.post('/api/ai-query', async (req, res) => {
   try {
-    const sql = await getDbStructure()
-    const sqlFile = await fs.readFileSync(path.join(__dirname, './demo.sql'), 'utf-8')
-    const desc = getAiDesc(sqlFile, req.body.defaultCols, req.body.message)
+    const desc = getAiDesc(req.body.sql, req.body.defaultCols, req.body.message)
 
     const response = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
@@ -158,7 +156,7 @@ app.post('/api/ai-query', async (req, res) => {
     } = JSON.parse(jsonContent)
     const sqlQuery = sqlResult.join("");
     console.log(sqlQuery)
-    db.query(sqlQuery, (err, results) => {
+    dbConnect.db.query(sqlQuery, (err, results) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;

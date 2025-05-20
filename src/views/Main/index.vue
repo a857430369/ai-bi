@@ -15,6 +15,10 @@ const props = defineProps({
   aiColumns: {
     type: Array,
     default: () => []
+  },
+  tableStruct: {
+    type: Array,
+    default: () => []
   }
 })
 dayjs.extend(utc);
@@ -408,8 +412,7 @@ const handlerSearch = () => {
 
   tableConfig.value.loading = true;
   timer = setTimeout(async () => {
-    let arr = await fetch("http://localhost:3000/api/sales").then(res => res.json());
-    handlerResponseResult(arr);
+    await onFetchAi("年度销售情况");
   }, INTERVAL)
 }
 onMounted(() => {
@@ -502,27 +505,29 @@ const onExport = () => {
     filename: filename
   })
 }
-const onAi = async () => {
+async function onFetchAi(message) {
   tableConfig.value.loading = true;
-  let message = prompt("请输入你的述求")
   const res = await fetch("http://localhost:3000/api/ai-query", {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
+      sql: props.tableStruct.filter(item => item.checked),
       cols: defaultCols.value,
       message: message
     })
   }).then(res => res.json())
-
-  console.log(res);
 
   fieldModel.value = res.table.fieldModel
   field2.value = res.table.field2
   // filterField.value = res.table.filterField
   tableConfig.value.loading = false;
   handlerResponseResult(res.list);
+}
+const onAi = async () => {
+  let message = prompt("请输入你的述求")
+  onFetchAi(message);
 }
 
 const filterField = ref([{

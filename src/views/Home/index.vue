@@ -56,7 +56,7 @@
         </n-form-item>
       </div>
       <div v-else-if="current === 4">
-        <Main :ai-columns="configForm.columns" />
+        <Main :ai-columns="configForm.columns" :tableStruct="tableStruct"/>
       </div>
       <n-form-item style="margin-top: 10px;">
         <n-space>
@@ -119,6 +119,9 @@ async function onNext() {
         name: i.name,
         columns: i.columns
       }));
+      if (!sqlStruct.length) {
+        return;
+      }
       const res = await fetch('http://localhost:3000/api/ai/genColumn', {
         method: 'POST',
         headers: {
